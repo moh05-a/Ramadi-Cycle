@@ -53,7 +53,7 @@ const FORMULAS = [
 export const COPY: Record<Lang, Copy> = {
   en: {
     brand: "Ramadi-Cycle", brand2: "رمادي", otherLang: "العربية",
-    title: "How much water and money can your home save?",
+    title: "What can your home's water grow?",
     intro: "Type in a few facts about your home. The numbers and the build plan below update straight away.",
     step1: "About your home", gov: "Where do you live?", budget: "How much do you want to spend?",
     year: "What kind of rain year?", yearHint: "Dry and wet years show the range you might see.",
@@ -120,13 +120,13 @@ export const COPY: Record<Lang, Copy> = {
     modelNone: "No model running. Built-in plan only.", prompt: "Instructions sent to the model",
     data: "Assumptions and sources",
     dataIntro: (v, n) => `Every number the calculator uses, with its source. ${v} of ${n} have a published source so far. Fix one with a pull request to data/.`,
-    tables: { assumptions: "Assumptions", rainfall: "Rainfall by governorate", monthly_share: "Rain by month", catalog: "Parts and prices", plants: "Plants", garden_plants: "Plant water needs", et0: "Evaporation by month (ET₀, mm)" },
+    tables: { assumptions: "Assumptions", rainfall: "Rainfall by governorate", monthly_share: "Rain by month", catalog: "Parts and prices", plants: "Plants", garden_plants: "Plant water needs", et0: "Evaporation by month (ET₀, mm)", humidity: "Air humidity by month (%)", soil: "Soil (top 30 cm)" },
     columns: {},
     govNames: {},
   },
   ar: {
     brand: "رمادي", brand2: "Ramadi-Cycle", otherLang: "English",
-    title: "كم يوفّر بيتك من الماء والمال؟",
+    title: "ماذا يمكن أن تزرع بمياه بيتك؟",
     intro: "اكتب بعض المعلومات عن بيتك، وستظهر الأرقام وخطة التنفيذ في الأسفل مباشرة.",
     step1: "معلومات البيت", gov: "أين تسكن؟", budget: "كم تريد أن تصرف؟",
     year: "أي نوع من السنوات المطرية؟", yearHint: "السنة الجافة والماطرة تبيّن المدى المتوقع.",
@@ -200,7 +200,7 @@ export const COPY: Record<Lang, Copy> = {
     modelNone: "لا يوجد نموذج مشغّل. الخطة الجاهزة فقط.", prompt: "التعليمات المرسلة إلى النموذج",
     data: "الافتراضات والمصادر",
     dataIntro: (v, n) => `كل رقم تستخدمه الحاسبة مع مصدره. لـ ${v} من ${n} مصدر منشور حتى الآن. صحّح أي رقم بطلب دمج إلى data/.`,
-    tables: { assumptions: "الافتراضات", rainfall: "الأمطار حسب المحافظة", monthly_share: "المطر حسب الشهر", catalog: "المواد والأسعار", plants: "النباتات", garden_plants: "حاجة النباتات للماء", et0: "التبخر الشهري (ET₀، ملم)" },
+    tables: { assumptions: "الافتراضات", rainfall: "الأمطار حسب المحافظة", monthly_share: "المطر حسب الشهر", catalog: "المواد والأسعار", plants: "النباتات", garden_plants: "حاجة النباتات للماء", et0: "التبخر الشهري (ET₀، ملم)", humidity: "رطوبة الهواء الشهرية (%)", soil: "التربة (أعلى 30 سم)" },
     columns: {
       parameter: "المعامل", value: "القيمة", unit: "الوحدة", source: "المصدر", status: "الحالة", governorate: "المحافظة",
       annual_mm: "ملم بالسنة", month: "الشهر", share_of_annual_rain: "نسبة المطر السنوي", item_id: "الرمز", name_en: "الاسم (إنجليزي)",

@@ -14,9 +14,14 @@ ghcn_first_flush.csv - NOAA GHCN-Daily measured station days, 1991-2020: share o
 first-flush diverter that resets every rain day, sum(min(P, 1 mm)) / sum(P). Station days, because the
 reanalysis has too many drizzle days and nearly doubles this figure.
 
-Also writes data/et0.csv, read by the garden planner: mean monthly reference evapotranspiration per
-governorate, FAO-56 Penman-Monteith (Allen et al. 1998, eq. 6) on NASA POWER daily max/min temperature,
-solar radiation, humidity and 2 m wind, 1991-2020.
+Also writes three tables read by the garden planner:
+- data/et0.csv: mean monthly reference evapotranspiration per governorate, FAO-56 Penman-Monteith
+  (Allen et al. 1998, eq. 6) on NASA POWER daily max/min temperature, solar radiation, humidity and 2 m wind,
+  1991-2020.
+- data/humidity.csv: mean monthly relative humidity at 2 m from the same NASA POWER days.
+- data/soil.csv: sand, silt, clay and pH of the top 30 cm from ISRIC SoilGrids 2.0 (250 m grid, CC-BY 4.0,
+  no key), with the USDA texture class. SoilGrids masks built-up land, so when the town point has no value
+  the script steps outwards to the nearest point that has one and records how far it went.
 """
 import csv
 import gzip
@@ -36,6 +41,15 @@ URL = ("https://power.larc.nasa.gov/api/temporal/daily/point?parameters={params}
        "&latitude={lat}&longitude={lon}&start=19910101&end=20201231&format=JSON")
 ET0_PARAMS = ["T2M_MAX", "T2M_MIN", "ALLSKY_SFC_SW_DWN", "RH2M", "WS2M"]
 ET0_CSV = ROOT / "data" / "et0.csv"
+HUMIDITY_CSV = ROOT / "data" / "humidity.csv"
+SOIL_CSV = ROOT / "data" / "soil.csv"
+SOIL_URL = ("https://rest.isric.org/soilgrids/v2.0/properties/query?lon={lon}&lat={lat}"
+            "&property=clay&property=sand&property=silt&property=phh2o"
+            "&depth=0-5cm&depth=5-15cm&depth=15-30cm&value=mean")
+SOIL_LAYERS_CM = [5, 10, 15]  # thickness of the 0-5, 5-15 and 15-30 cm layers, for a weighted mean
+SOIL_PAUSE_S = 13  # SoilGrids fair use is about 5 requests a minute
+SOIL_RINGS_DEG = [0.03, 0.06, 0.1]  # about 3, 6 and 10 km
+KM_PER_DEG = 111
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 GHCN_URL = "https://www.ncei.noaa.gov/pub/data/ghcn/daily/by_station/{station}.csv.gz"
 # Jordanian GHCN stations with 1991-2020 rain days. The record has gaps; a ratio over the reported days
@@ -99,18 +113,74 @@ def et0_day(tmax, tmin, rs, rh, u2, lat_deg, elev_m, doy):
 
 
 def monthly_et0(lat, lon):
-    """Mean monthly ET0 in mm over 1991-2020. Days with any missing value are skipped."""
+    """Mean monthly ET0 in mm and mean relative humidity in % over 1991-2020. Days with any missing value
+    are skipped."""
     d = json.loads(get(URL.format(params=",".join(ET0_PARAMS), lat=lat, lon=lon)))
     p, elev = d["properties"]["parameter"], d["geometry"]["coordinates"][2]
     per_day = {m: [] for m in range(1, 13)}
+    rh = {m: [] for m in range(1, 13)}
     for day in p["T2M_MAX"]:
         vals = [p[k][day] for k in ET0_PARAMS]
         if any(v <= -999 for v in vals):
             continue
         dt = date(int(day[:4]), int(day[4:6]), int(day[6:]))
         per_day[dt.month].append(et0_day(*vals, lat, elev, dt.timetuple().tm_yday))
+        rh[dt.month].append(p["RH2M"][day])
     days_in = [31, 28.25, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    return [round(statistics.fmean(per_day[m]) * days_in[m - 1], 1) for m in range(1, 13)]
+    return ([round(statistics.fmean(per_day[m]) * days_in[m - 1], 1) for m in range(1, 13)],
+            [round(statistics.fmean(rh[m])) for m in range(1, 13)])
+
+
+def usda_texture(sand, silt, clay):
+    """USDA soil texture class from percentages (NRCS texture triangle rules)."""
+    if silt + 1.5 * clay < 15:
+        return "sand"
+    if silt + 2 * clay < 30:
+        return "loamy sand"
+    if (7 <= clay < 20 and sand > 52) or (clay < 7 and silt < 50):
+        return "sandy loam"
+    if 7 <= clay < 27 and 28 <= silt < 50 and sand <= 52:
+        return "loam"
+    if (silt >= 50 and 12 <= clay < 27) or (50 <= silt < 80 and clay < 12):
+        return "silt loam"
+    if silt >= 80 and clay < 12:
+        return "silt"
+    if 20 <= clay < 35 and silt < 28 and sand > 45:
+        return "sandy clay loam"
+    if 27 <= clay < 40 and 20 < sand <= 45:
+        return "clay loam"
+    if 27 <= clay < 40 and sand <= 20:
+        return "silty clay loam"
+    if clay >= 35 and sand > 45:
+        return "sandy clay"
+    if clay >= 40 and silt >= 40:
+        return "silty clay"
+    return "clay"
+
+
+def soil_at(lat, lon):
+    """Top-30 cm soil at the point, or None where SoilGrids has no value (built-up land, water)."""
+    layers = json.loads(get(SOIL_URL.format(lat=lat, lon=lon)))["properties"]["layers"]
+    vals = {}
+    for layer in layers:
+        means = [d["values"]["mean"] for d in layer["depths"]]
+        if any(v is None for v in means):
+            return None
+        factor = layer["unit_measure"]["d_factor"]
+        vals[layer["name"]] = sum(v / factor * w for v, w in zip(means, SOIL_LAYERS_CM)) / sum(SOIL_LAYERS_CM)
+    return vals
+
+
+def nearest_soil(lat, lon):
+    """Soil at the point, else at the nearest point on rings of 8 around it. Returns (values, km away)."""
+    tries = [(0, 0)] + [(r * dy, r * dx) for r in SOIL_RINGS_DEG
+                        for dy, dx in [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)]]
+    for dlat, dlon in tries:
+        vals = soil_at(round(lat + dlat, 3), round(lon + dlon, 3))
+        time.sleep(SOIL_PAUSE_S)
+        if vals:
+            return vals, round(math.hypot(dlat, dlon) * KM_PER_DEG)
+    raise RuntimeError(f"no SoilGrids value within {SOIL_RINGS_DEG[-1]} deg of {lat}, {lon}")
 
 
 def first_flush(station):
@@ -166,15 +236,27 @@ def main():
     write("nasa_power_rainfall.csv", rows, "NASA POWER daily PRECTOTCORR")
     flush = [{"station": s, "name": name, **first_flush(s)} for s, name in GHCN_STATIONS.items()]
     write("ghcn_first_flush.csv", flush, "NOAA GHCN-Daily PRCP, unflagged reports")
-    with ET0_CSV.open("w", newline="") as f:
-        w = csv.writer(f, lineterminator="\n")
-        w.writerow(["governorate", *MONTHS, "source", "status"])
+    with ET0_CSV.open("w", newline="") as f_et0, HUMIDITY_CSV.open("w", newline="") as f_rh:
+        w_et0, w_rh = csv.writer(f_et0, lineterminator="\n"), csv.writer(f_rh, lineterminator="\n")
+        for w in (w_et0, w_rh):
+            w.writerow(["governorate", *MONTHS, "source", "status"])
         for gov, (lat, lon) in POINTS.items():
-            w.writerow([gov, *monthly_et0(lat, lon),
-                        "FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py)",
-                        "sourced"])
-            print(f"et0 {gov}", file=sys.stderr)
-    print(f"wrote {ET0_CSV.relative_to(ROOT)}", file=sys.stderr)
+            et0, rh = monthly_et0(lat, lon)
+            w_et0.writerow([gov, *et0, "FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 "
+                                       "(scripts/fetch_climate.py)", "sourced"])
+            w_rh.writerow([gov, *rh, "NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)", "sourced"])
+            print(f"et0 and humidity {gov}", file=sys.stderr)
+    print(f"wrote {ET0_CSV.relative_to(ROOT)} and {HUMIDITY_CSV.relative_to(ROOT)}", file=sys.stderr)
+    with SOIL_CSV.open("w", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")
+        w.writerow(["governorate", "sand_pct", "silt_pct", "clay_pct", "ph", "texture", "km_from_point", "source", "status"])
+        for gov, (lat, lon) in POINTS.items():
+            v, km = nearest_soil(lat, lon)
+            w.writerow([gov, round(v["sand"]), round(v["silt"]), round(v["clay"]), round(v["phh2o"], 1),
+                        usda_texture(v["sand"], v["silt"], v["clay"]), km,
+                        "ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)", "sourced"])
+            print(f"soil {gov}: {km} km from point", file=sys.stderr)
+    print(f"wrote {SOIL_CSV.relative_to(ROOT)}", file=sys.stderr)
 
 
 if __name__ == "__main__":

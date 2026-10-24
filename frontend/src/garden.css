@@ -7,6 +7,13 @@
 }
 .gd-wishes textarea:focus-visible { outline: 3px solid var(--rc-cistern); outline-offset: 1px; }
 
+.gd-site { padding: 20px 28px; border-block-end: 1px solid var(--rc-rule); display: grid; gap: var(--rc-space-3); }
+.gd-site dl { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: var(--rc-space-3) var(--rc-space-6); }
+.gd-site dl > div { display: grid; gap: 2px; align-content: start; min-width: 0; }
+.gd-site dt { font-size: 0.8125rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--rc-stone); font-weight: 600; }
+.gd-site dd { margin: 0; font-size: 0.9375rem; }
+.gd-site small { display: block; font-size: 0.8125rem; color: var(--rc-stone); margin-block-start: 2px; }
+
 .gd-result { padding: 24px 28px 28px; display: grid; gap: var(--rc-space-6); }
 .gd-result > * { min-width: 0; }
 .gd-verdict { display: flex; flex-wrap: wrap; align-items: center; gap: var(--rc-space-3) var(--rc-space-6); }
@@ -45,5 +52,5 @@
 
 @media (max-width: 640px) {
   .gd-form { grid-template-columns: minmax(0, 1fr); }
-  .gd-result { padding-inline: var(--rc-space-4); }
+  .gd-result, .gd-site { padding-inline: var(--rc-space-4); }
 }

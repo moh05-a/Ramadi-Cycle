@@ -201,3 +201,4 @@ body { margin: 0; background: var(--rc-bg); }
   .app-main { padding-block: 0; }
   .app-panel { break-inside: auto; }
 }
+.app-notrees { display: grid; gap: var(--rc-space-3); justify-items: start; }

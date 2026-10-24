@@ -209,10 +209,15 @@ function PlanPage({ s }: { s: Store }) {
         {Math.abs(plan.cost - shown.payback_cost) > 0.5 && <p className="app-note">{t.paybackNote(num(shown.payback_cost))}</p>}
       </div>
     ),
-    plants: (
+    plants: plan.plants.length ? (
       <ul className="app-plants">
         {plan.plants.map((p) => <li key={p.plant_id}><span><b>{p.name}</b>: {p.reason}</span></li>)}
       </ul>
+    ) : (
+      <div className="app-notrees">
+        <p>{sh.noTrees}</p>
+        <LinkButton to="garden" variant="secondary">{sh.toGarden}<ArrowIcon /></LinkButton>
+      </div>
     ),
   };
 

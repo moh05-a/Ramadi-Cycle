@@ -4,7 +4,7 @@ import type { Lang } from "@brand";
 export type Budget = "low" | "full";
 export type Year = "dry" | "average" | "wet";
 export type FieldKey = "roof_m2" | "people" | "showers_pp" | "laundry_loads" | "capacity_m3";
-export type TableKey = "assumptions" | "rainfall" | "monthly_share" | "catalog" | "plants" | "garden_plants" | "et0";
+export type TableKey = "assumptions" | "rainfall" | "monthly_share" | "catalog" | "plants" | "garden_plants" | "et0" | "humidity" | "soil";
 type Row = Record<string, string | number | boolean>;
 
 export type Options = {
@@ -79,20 +79,28 @@ export type GardenPlant = {
 };
 export type GardenResponse = {
   model: string;
-  source: "template" | "model";
+  source: "model" | "none";
   trace: GardenTrace[];
   notice: string | null;
-  language: Lang;
-  summary: string;
-  care_steps: string[];
-  plants: GardenPlant[];
   garden_m2: number;
-  area_used: number;
+  site: {
+    soil: { texture: string; ph: number; sand: number; silt: number; clay: number; km_from_point: number };
+    humidity: number[];
+    watering_note: string;
+  };
   supply_l_week: number[];
-  demand_l_week: number[];
-  checks: { rule: string; passed: boolean }[];
   warnings: string[];
   prompt: string;
+  /** Only present when the model's garden passed every check. Plant suggestions never come from anywhere else. */
+  plan: null | {
+    language: Lang;
+    summary: string;
+    care_steps: string[];
+    plants: GardenPlant[];
+    area_used: number;
+    demand_l_week: number[];
+    checks: { rule: string; passed: boolean }[];
+  };
 };
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {

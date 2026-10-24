@@ -8,7 +8,7 @@ type Shell = {
   skip: string; navLabel: string; navMenu: string; nav: Record<Page, string>;
   title: string; intro: string; goGarden: string; goSave: string; goPlan: string;
   tabs: Record<"steps" | "buy" | "plants", string>;
-  unreachable: string;
+  unreachable: string; noTrees: string; toGarden: string;
 };
 
 export const SHELL: Record<Lang, Shell> = {
@@ -16,21 +16,23 @@ export const SHELL: Record<Lang, Shell> = {
     brand: "Suqya", brand2: "سُقيا", darkMode: "Dark mode", langLabel: "العربية",
     skip: "Skip to content", navLabel: "Pages", navMenu: "Menu",
     nav: { home: "Your home", garden: "Your garden", save: "Savings", plan: "Build plan", calc: "How we calculated" },
-    title: "How much water and money can your home save?",
+    title: "What can your home's water grow?",
     intro: "Type in a few facts about your home. We work out how much water you can reuse, what it can grow, and what you save.",
     goGarden: "Plan my garden", goSave: "See my savings", goPlan: "See the build plan",
     tabs: { steps: "Build steps", buy: "What to buy", plants: "Trees" },
     unreachable: "The calculator isn't running. Start it with this command, then try again:",
+    noTrees: "Tree and plant suggestions come from the AI garden planner, sized to your water.", toGarden: "Plan my garden",
   },
   ar: {
     brand: "سُقيا", brand2: "Suqya", darkMode: "وضع داكن", langLabel: "العربية",
     skip: "انتقل إلى المحتوى", navLabel: "الصفحات", navMenu: "القائمة",
     nav: { home: "بيتك", garden: "حديقتك", save: "التوفير", plan: "خطة التنفيذ", calc: "كيف حسبنا" },
-    title: "كم يوفّر بيتك من الماء والمال؟",
+    title: "ماذا يمكن أن تزرع بمياه بيتك؟",
     intro: "اكتب بعض المعلومات عن بيتك. نحسب كم ماءً يمكنك إعادة استخدامه، وماذا يمكن أن يزرع، وكم توفّر.",
     goGarden: "خطّط حديقتي", goSave: "اعرض التوفير", goPlan: "اعرض خطة التنفيذ",
     tabs: { steps: "خطوات التنفيذ", buy: "ماذا تشتري", plants: "الأشجار" },
     unreachable: "الحاسبة غير مشغّلة. شغّلها بهذا الأمر ثم حاول مجدداً:",
+    noTrees: "اقتراحات الأشجار والنباتات تأتي من مخطّط الحديقة بالذكاء الاصطناعي، على قدر مياهك.", toGarden: "خطّط حديقتي",
   },
 };
 

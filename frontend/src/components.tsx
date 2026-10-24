@@ -271,4 +271,4 @@ export function DataTable({ rows, label, columns }: { rows: Record<string, strin
   );
 }
 
-export const TABLE_ORDER: TableKey[] = ["assumptions", "rainfall", "monthly_share", "catalog", "plants", "garden_plants", "et0"];
+export const TABLE_ORDER: TableKey[] = ["assumptions", "rainfall", "monthly_share", "catalog", "plants", "garden_plants", "et0", "humidity", "soil"];

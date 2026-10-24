@@ -63,7 +63,6 @@ function useGarden(s: Store) {
     areaRaw, setArea, adjusted, lo, hi, wishes, setWishes, shown, working, stale, error, design,
     isAI: !!designed && designed.key === key,
     cancel: () => { ctl.current?.abort(); setWorking(false); },
-    reset: () => setDesigned(undefined),
   };
 }
 
@@ -110,20 +109,58 @@ export function GardenPage({ s }: { s: Store }) {
             {g.working
               ? <Button variant="secondary" onClick={g.cancel}>{t.cancel}</Button>
               : <Button onClick={g.design} disabled={!ai.model}>{t.design}</Button>}
-            {g.isAI && !g.working && <Button variant="secondary" onClick={g.reset}>{t.builtIn}</Button>}
           </div>
         )}
         {isCloud(ai.model) && models.length > 0 && <Notice>{t.cloudNote}</Notice>}
         {g.working ? <p className="app-ai__status" role="status">{t.working(ai.model)}</p>
-          : g.isAI && shown?.source === "model" ? <p className="app-ai__status is-ok">{t.byModel(shown.model)}</p>
+          : g.isAI && shown?.plan ? <p className="app-ai__status is-ok">{t.byModel(shown.model)}</p>
+          : g.isAI && shown?.notice ? <Notice>{shown.notice}</Notice>
           : g.stale ? <p className="app-ai__status">{t.stale}</p>
           : shown?.notice && <p className="app-ai__status">{shown.notice}</p>}
         {g.error && <Notice><span dir="ltr">{g.error}</span></Notice>}
       </div>
 
-      {shown && <GardenResult g={shown} lang={s.lang} showTrace={g.isAI} />}
+      {shown && <Site g={shown} lang={s.lang} />}
+
+      {shown && (
+        <div className="gd-result">
+          {g.isAI && shown.plan && <Suggestions g={shown} lang={s.lang} />}
+          <figure className="gd-chart">
+            <figcaption className="app-h3">{t.chartTitle}</figcaption>
+            <GardenChart supply={shown.supply_l_week} demand={g.isAI ? shown.plan?.demand_l_week ?? [] : []} lang={s.lang} />
+            <p className="app-note">{t.chartNote}</p>
+          </figure>
+          {g.isAI && <Trace g={shown} lang={s.lang} />}
+          {g.isAI && shown.plan && <Care g={shown} lang={s.lang} />}
+          <div className="gd-rules">
+            <h3 className="app-h3">{t.rules}</h3>
+            <div className="sh-warnings"><Warnings items={shown.warnings} /></div>
+          </div>
+        </div>
+      )}
 
       <div className="sh-foot noprint"><LinkButton to="save">{sh.goSave}<ArrowIcon /></LinkButton></div>
+    </section>
+  );
+}
+
+/** Soil and air for this governorate, from SoilGrids and NASA POWER, plus the code-owned watering pattern. */
+function Site({ g, lang }: { g: GardenResponse; lang: Lang }) {
+  const t = GARDEN[lang];
+  const { soil, humidity, watering_note } = g.site;
+  const texture = t.textures[soil.texture] ?? soil.texture;
+  return (
+    <section className="gd-site" aria-labelledby="h-site">
+      <h3 id="h-site" className="app-h3">{t.site}</h3>
+      <dl>
+        <div>
+          <dt>{t.soil}</dt>
+          <dd>{t.soilLine(texture, num(soil.ph, 1), num(soil.clay), num(soil.sand))}
+            {soil.km_from_point > 0 && <small>{t.soilFar(num(soil.km_from_point))}</small>}</dd>
+        </div>
+        <div><dt>{t.humidity}</dt><dd>{t.humidityLine(num(humidity[6]), num(humidity[0]))}</dd></div>
+        <div><dt>{t.watering}</dt><dd>{watering_note}</dd></div>
+      </dl>
     </section>
   );
 }
@@ -133,81 +170,79 @@ function driest(supply: number[]) {
   return { month, value: supply[month] };
 }
 
-function GardenResult({ g, lang, showTrace }: { g: GardenResponse; lang: Lang; showTrace: boolean }) {
+/** The model's garden: verdict, summary and plant cards. Only rendered for a plan that passed every check. */
+function Suggestions({ g, lang }: { g: GardenResponse; lang: Lang }) {
   const t = GARDEN[lang];
-  const short = g.demand_l_week.map((d, i) => (d > g.supply_l_week[i] + 1e-6 ? i : -1)).filter((i) => i >= 0);
-  const passed = g.checks.filter((c) => c.passed).length;
-
+  const plan = g.plan!;
+  const short = plan.demand_l_week.map((d, i) => (d > g.supply_l_week[i] + 1e-6 ? i : -1)).filter((i) => i >= 0);
   return (
-    <div className="gd-result">
+    <>
       <div className="gd-verdict">
         <span className={`gd-pill ${short.length ? "is-short" : "is-ok"}`}>
           {short.length ? t.short(short.map((i) => months[lang][i]).join(lang === "ar" ? "، " : ", ")) : t.fits}
         </span>
-        <span className="gd-area">{t.areaUsed(num(g.area_used, 1), num(g.garden_m2))}</span>
+        <span className="gd-area">{t.areaUsed(num(plan.area_used, 1), num(g.garden_m2))}</span>
       </div>
-
-      <p className="gd-summary" dir="auto">{g.summary}</p>
-
-      {g.plants.length === 0 ? <Notice>{t.empty}</Notice> : (
-        <ul className="gd-plants">
-          {g.plants.map((p) => (
-            <li key={p.plant_id} className={`gd-plant is-${p.kind}`}>
-              <div className="gd-plant__head">
-                <b>{p.name}</b>
-                <span className="gd-plant__count">{t.each(num(p.count))}</span>
-              </div>
-              <p dir="auto">{p.reason}</p>
-              <span className="gd-plant__water">{t.peak(num(p.peak_l_week))}</span>
-              {p.salt_note && <span className="gd-plant__salt">{p.salt_note}</span>}
-            </li>
-          ))}
-        </ul>
-      )}
+      <p className="gd-summary" dir="auto">{plan.summary}</p>
+      <ul className="gd-plants">
+        {plan.plants.map((p) => (
+          <li key={p.plant_id} className={`gd-plant is-${p.kind}`}>
+            <div className="gd-plant__head">
+              <b>{p.name}</b>
+              <span className="gd-plant__count">{t.each(num(p.count))}</span>
+            </div>
+            <p dir="auto">{p.reason}</p>
+            <span className="gd-plant__water">{t.peak(num(p.peak_l_week))}</span>
+            {p.salt_note && <span className="gd-plant__salt">{p.salt_note}</span>}
+          </li>
+        ))}
+      </ul>
       <p className="app-note">{t.mature}</p>
+    </>
+  );
+}
 
-      <figure className="gd-chart">
-        <figcaption className="app-h3">{t.chartTitle}</figcaption>
-        <GardenChart supply={g.supply_l_week} demand={g.demand_l_week} lang={lang} />
-        <p className="app-note">{t.chartNote}</p>
-      </figure>
+/** Every attempt the model made and why the checks accepted or rejected it. */
+function Trace({ g, lang }: { g: GardenResponse; lang: Lang }) {
+  const t = GARDEN[lang];
+  if (g.trace.length === 0) return null;
+  return (
+    <div className="gd-trace">
+      <h3 className="app-h3">{t.trace}</h3>
+      <ol>
+        {g.trace.map((a) => (
+          <li key={a.attempt} className={`is-${a.outcome}`}>
+            <b>{t.attempt(a.attempt)}</b>: {t.outcomes[a.outcome]}
+            {a.outcome === "passed" ? ` · ${t.passedAll(g.plan?.checks.length ?? 0)}` : a.detail && <> · <span dir="ltr">{a.detail}</span></>}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
 
-      {showTrace && g.trace.length > 0 && (
-        <div className="gd-trace">
-          <h3 className="app-h3">{t.trace}</h3>
-          <ol>
-            {g.trace.map((a) => (
-              <li key={a.attempt} className={`is-${a.outcome}`}>
-                <b>{t.attempt(a.attempt)}</b>: {t.outcomes[a.outcome]}
-                {a.outcome === "passed" ? ` · ${t.passedAll(g.checks.length)}` : a.detail && <> · <span dir="ltr">{a.detail}</span></>}
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
-
+function Care({ g, lang }: { g: GardenResponse; lang: Lang }) {
+  const t = GARDEN[lang];
+  const plan = g.plan!;
+  const passed = plan.checks.filter((c) => c.passed).length;
+  return (
+    <>
       <div className="gd-care">
         <h3 className="app-h3">{t.care}</h3>
-        <ol>{g.care_steps.map((c) => <li key={c} dir="auto">{c}</li>)}</ol>
+        <ol>{plan.care_steps.map((c) => <li key={c} dir="auto">{c}</li>)}</ol>
       </div>
-
       <div className="app-checks">
         <h3 className="app-h3">{t.checks}</h3>
-        <SafetyBadge passed={passed} total={g.checks.length} label={t.checksLabel} ofWord={t.of} />
+        <SafetyBadge passed={passed} total={plan.checks.length} label={t.checksLabel} ofWord={t.of} />
         <ul>
-          {g.checks.map((c) => (
+          {plan.checks.map((c) => (
             <li key={c.rule} className={c.passed ? "is-pass" : "is-fail"}>
               <span aria-hidden="true">{c.passed ? "✓" : "✕"}</span> {t.checkRules[c.rule] ?? c.rule}
             </li>
           ))}
         </ul>
       </div>
-
-      <div className="gd-rules">
-        <h3 className="app-h3">{t.rules}</h3>
-        <div className="sh-warnings"><Warnings items={g.warnings} /></div>
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -233,7 +268,7 @@ function GardenChart({ supply, demand, lang }: { supply: number[]; demand: numbe
   return (
     <div className="rc-chart-fig">
       <div className="gd-legend" aria-hidden="true">
-        <span><i className="gd-legend__bar" />{t.demand}</span>
+        {demand.length === 12 && <span><i className="gd-legend__bar" />{t.demand}</span>}
         <span><i className="gd-legend__line" />{t.supply}</span>
         <span className="gd-legend__unit">{t.perWeek}</span>
       </div>
@@ -244,7 +279,7 @@ function GardenChart({ supply, demand, lang }: { supply: number[]; demand: numbe
             <text x={L - 6} y={y(v) + 4} textAnchor="end">{num(v)}</text>
           </g>
         ))}
-        {demand.map((v, i) => {
+        {demand.length === 12 && demand.map((v, i) => {
           const over = v > supply[i] + 1e-6;
           return <rect key={i} x={L + band * i + 4} y={y(v)} width={band - 8} height={Math.max(0, T + plotH - y(v))}
             className={over ? "gd-bar is-short" : "gd-bar"} />;

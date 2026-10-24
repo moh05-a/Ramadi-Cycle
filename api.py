@@ -97,6 +97,8 @@ def options():
             "plants": _records(PLANTS),
             "garden_plants": _records(GARDEN.plants.reset_index().drop(columns=["name_en", "name_ar"])),
             "et0": _records(GARDEN.et0.reset_index()),
+            "humidity": _records(GARDEN.humidity.reset_index()),
+            "soil": _records(GARDEN.soil.reset_index()),
         },
     }
 
@@ -172,37 +174,45 @@ def _weekly(series):
 
 
 def garden(req: GardenRequest, chat=None):
-    """Garden for this household's water: the model's design when one is asked for and passes, else the built-in one."""
+    """This household's garden water, soil and air, plus the model's garden when one is asked for and passes.
+    No model, or no passing plan: plan is None and nothing is suggested."""
     profile, res = _profile(req)
     ctx = r.garden_context(profile, res, SHARES, A, GARDEN, req.garden_m2)
     gen = r.generate_garden(ctx, GARDEN, PLANTS, req.lang, req.model, req.wishes, chat=chat)
+    out = {
+        "model": req.model,
+        "source": gen.source,
+        "trace": gen.trace,
+        "notice": r.garden_notice(gen, req.model, req.lang),
+        "garden_m2": ctx["garden_m2"],
+        "site": {"soil": ctx["soil"], "humidity": ctx["humidity"],
+                 "watering_note": r.watering_note(ctx["soil"]["texture"], req.lang)},
+        "supply_l_week": _weekly(ctx["supply"]),
+        "warnings": [r.WARNINGS[req.lang][i] for i in r.GARDEN_WARNINGS],
+        "prompt": r.build_garden_prompt(ctx, GARDEN, req.lang, req.wishes),
+        "plan": None,
+    }
+    if gen.plan is None:
+        return out
     plan = gen.plan
     name_col = "name_ar" if req.lang == "ar" else "name_en"
     rows = []
     for p in plan.plants:
         row = GARDEN.plants.loc[p.plant_id]
-        need = _weekly(ctx["need"][p.plant_id])
         rows.append({"plant_id": p.plant_id, "name": row[name_col], "kind": row["kind"], "count": p.count,
                      "reason": p.reason, "canopy_m2": p.count * float(row["canopy_m2"]),
-                     "peak_l_week": p.count * max(need), "status": row["status"],
+                     "peak_l_week": p.count * r.peak_week(ctx["need"][p.plant_id]), "status": row["status"],
                      "salt_note": r.SALT_NOTE[req.lang] if row["salt"] in r.SALT_SENSITIVE else None})
-    return {
-        "model": req.model,
-        "source": gen.source,
-        "trace": gen.trace,
-        "notice": r.garden_notice(gen, req.model, req.lang),
+    out["plan"] = {
         "language": plan.language,
         "summary": plan.summary,
         "care_steps": plan.care_steps,
         "plants": rows,
-        "garden_m2": ctx["garden_m2"],
         "area_used": r.garden_area(plan.plants, GARDEN),
-        "supply_l_week": _weekly(ctx["supply"]),
         "demand_l_week": _weekly(r.garden_demand(plan.plants, ctx)),
         "checks": [{"rule": rule, "passed": ok} for rule, ok in r.garden_checks(plan, ctx, GARDEN)],
-        "warnings": [r.WARNINGS[req.lang][i] for i in r.GARDEN_WARNINGS],
-        "prompt": r.build_garden_prompt(ctx, GARDEN, req.lang, req.wishes),
     }
+    return out
 
 
 ROUTES = {"/api/plan": (PlanRequest, plan), "/api/generate": (GenerateRequest, generate),

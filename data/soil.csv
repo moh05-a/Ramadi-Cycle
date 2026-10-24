@@ -1,0 +1,14 @@
+governorate,sand_pct,silt_pct,clay_pct,ph,texture,km_from_point,source,status
+Amman (west),16,33,52,7.9,clay,3,"ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)",sourced
+Amman (east),12,41,46,8.0,silty clay,0,"ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)",sourced
+Zarqa,12,41,46,8.0,silty clay,3,"ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)",sourced
+Irbid,10,43,48,8.0,silty clay,3,"ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)",sourced
+Ajloun,16,34,50,7.6,clay,3,"ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)",sourced
+Jerash,12,42,46,7.9,silty clay,3,"ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)",sourced
+Balqa (Salt),15,36,49,7.9,clay,3,"ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)",sourced
+Madaba,11,43,46,8.0,silty clay,3,"ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)",sourced
+Mafraq,12,53,35,7.9,silty clay loam,0,"ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)",sourced
+Karak,18,38,44,7.8,clay,0,"ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)",sourced
+Tafilah,25,37,38,7.7,clay loam,3,"ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)",sourced
+Ma'an,30,42,28,8.0,clay loam,0,"ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)",sourced
+Aqaba,40,29,31,7.9,clay loam,3,"ISRIC SoilGrids 2.0, mean of 0-30 cm (scripts/fetch_climate.py)",sourced

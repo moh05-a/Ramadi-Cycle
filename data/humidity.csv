@@ -1,0 +1,14 @@
+governorate,Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec,source,status
+Amman (west),69,68,64,57,49,47,49,52,54,53,55,64,"NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)",sourced
+Amman (east),70,67,62,53,45,43,45,49,50,50,56,66,"NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)",sourced
+Zarqa,70,67,62,53,45,43,45,49,50,50,56,66,"NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)",sourced
+Irbid,74,73,69,62,55,54,55,58,58,56,58,68,"NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)",sourced
+Ajloun,74,73,69,62,55,54,55,58,58,56,58,68,"NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)",sourced
+Jerash,74,73,69,62,55,54,55,58,58,56,58,68,"NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)",sourced
+Balqa (Salt),69,68,64,57,49,47,49,52,54,53,55,64,"NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)",sourced
+Madaba,65,63,59,51,43,43,44,48,50,51,53,60,"NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)",sourced
+Mafraq,71,68,63,53,45,44,47,51,50,50,56,66,"NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)",sourced
+Karak,65,63,59,51,43,43,44,48,50,51,53,60,"NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)",sourced
+Tafilah,64,62,59,50,42,42,44,48,52,52,53,60,"NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)",sourced
+Ma'an,66,60,52,41,35,34,35,39,43,47,55,63,"NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)",sourced
+Aqaba,58,53,47,38,34,36,37,41,46,48,51,56,"NASA POWER daily RH2M, mean 1991-2020 (scripts/fetch_climate.py)",sourced

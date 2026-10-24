@@ -165,9 +165,10 @@ with plan_tab:
         pl = plants.set_index("plant_id")
         name_col = "name_ar" if bp.language == "ar" else "name_en"
         st.markdown(
-            f"<div class='{rtl}'><h4>{L[2]}</h4><ul>"
-            + "".join(f"<li><b>{esc(pl.at[p.plant_id, name_col])}</b>: {esc(p.reason)}</li>" for p in bp.plants)
-            + f"</ul><h4>{L[3]}</h4>"
+            f"<div class='{rtl}'>"
+            + (f"<h4>{L[2]}</h4><ul>" + "".join(f"<li><b>{esc(pl.at[p.plant_id, name_col])}</b>: {esc(p.reason)}</li>"
+                                                 for p in bp.plants) + "</ul>" if bp.plants else "")
+            + f"<h4>{L[3]}</h4>"
             + "".join(f"<div class='rc-warn'>{w}</div>" for w in r.WARNINGS[bp.language])
             + f"<p><i>{r.DISCLAIMER[bp.language]}</i></p></div>",
             unsafe_allow_html=True)

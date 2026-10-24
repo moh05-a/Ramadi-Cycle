@@ -34,8 +34,11 @@ cd frontend && npm install && npm run dev   # terminal 2: http://localhost:5173
 ## Test
 
 ```bash
+pip install -r requirements-dev.txt
 pytest -q
 ```
+
+Tests never touch a real model or the network: Ollama is replaced by fakes, and any socket to a host other than this machine fails the run.
 
 ## How it works
 

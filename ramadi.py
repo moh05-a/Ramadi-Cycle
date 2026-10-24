@@ -302,6 +302,7 @@ BANNED_TERMS = ["bleach", "chlorine", "chemical", "drinking", "drink", "potable"
 ALLOWED_PHRASES = ["toilet cistern", "toilet tank", "toilet flushing", "flushing toilet", "flush toilet",
                    "flush the toilet", "طرد المرحاض", "طرد المراحيض"]
 REQUIRED_ITEMS = ["first_flush", "label_kit"]
+REQUIRED_REASON = {"en": "Required by the safety rules.", "ar": "مطلوب حسب قواعد السلامة."}
 
 # Rejection codes, one per rule, so logs and tests can tell them apart.
 EMPTY_RESPONSE = "empty_response"
@@ -410,7 +411,7 @@ def enforce_required(bp):
     have = {m.item_id for m in bp.materials}
     for item in REQUIRED_ITEMS:
         if item not in have:
-            bp.materials.append(PlanItem(item_id=item, quantity=1, reason="Required by the safety rules."))
+            bp.materials.append(PlanItem(item_id=item, quantity=1, reason=REQUIRED_REASON[bp.language]))
     return bp
 
 
@@ -650,4 +651,6 @@ def to_markdown(bp, bom, profile, result):
     lines += [f"| **{h[7]}** | | **{bom['total_jod'].sum():.0f}** |", "", f"## {h[5]}"]
     lines += [f"- {p.plant_id}: {p.reason}" for p in bp.plants]
     lines += ["", f"## {h[6]}"] + [f"- {w}" for w in WARNINGS[lang]] + ["", f"_{DISCLAIMER[lang]}_", ""]
+    if lang == "ar":  # blank lines keep the Markdown inside the block rendered
+        lines = ['<div dir="rtl" lang="ar">', ""] + lines + ["</div>", ""]
     return "\n".join(lines)

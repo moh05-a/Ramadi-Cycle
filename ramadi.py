@@ -225,22 +225,33 @@ def simulate(profile, shares, a):
 
 # ---------------------------------------------------------------- blueprint schema
 
+QTY_MIN, QTY_MAX = 1, 50  # PRD M6
+REASON_MAX = 200
+
+
+# strict: no "5" for 5 or 5.0 for 5; extra="forbid": no fields the schema does not name.
+STRICT = ConfigDict(extra="forbid", strict=True)
+
+
 class PlanItem(BaseModel):
+    model_config = STRICT
     item_id: str
-    quantity: int = Field(ge=1, le=50)
-    reason: str = Field(max_length=200)
+    quantity: int = Field(ge=QTY_MIN, le=QTY_MAX)
+    reason: str = Field(max_length=REASON_MAX)
 
 
 class PlantPick(BaseModel):
+    model_config = STRICT
     plant_id: str
-    reason: str = Field(max_length=200)
+    reason: str = Field(max_length=REASON_MAX)
 
 
 class Blueprint(BaseModel):
+    model_config = STRICT
     language: Literal["en", "ar"]
-    summary: str
-    greywater_steps: list[str]
-    rainwater_steps: list[str]
+    summary: str = Field(min_length=1)
+    greywater_steps: list[str] = Field(min_length=1)
+    rainwater_steps: list[str] = Field(min_length=1)
     materials: list[PlanItem]
     plants: list[PlantPick]
 

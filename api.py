@@ -2,6 +2,10 @@
 
 Wraps ramadi.py only. Every number, price, plan and warning comes from there; this file adds no logic.
 Listens on 127.0.0.1, so nothing outside this laptop can reach it.
+
+GET  /api/options   inputs, limits, installed models, method details and every data table
+POST /api/plan      engine results, Sareef, community and the template plan (instant)
+POST /api/generate  the same request plus "model": asks the local model, falls back to the template
 """
 import json
 import os
@@ -17,9 +21,10 @@ A = r.assumption_values(ASSUMPTIONS)
 RAIN_MM = dict(zip(RAIN["governorate"], RAIN["annual_mm"].astype(float)))
 PLANT_NAMES = PLANTS.set_index("plant_id")
 BUDGETS = ["low", "full"]
+MAX_BODY = 1 << 16
 
 # Same ranges as the Streamlit sliders in app.py.
-LIMITS = {"roof_m2": (0, 400), "people": (1, 12), "showers_pp": (0, 14), "laundry_loads": (0, 14),
+LIMITS = {"roof_m2": (0, 400), "people": (0, 12), "showers_pp": (0, 14), "laundry_loads": (0, 14),
           "capacity_m3": (0.5, 10.0)}
 
 
@@ -38,6 +43,7 @@ class PlanRequest(BaseModel):
     budget: Literal["low", "full"] = "low"
     lang: Literal["en", "ar"] = "en"
     year: Literal["dry", "average", "wet"] = "average"
+    homes: int = Field(1, ge=1, le=r.COMMUNITY_MAX_HOMES)
 
     @field_validator("governorate")
     @classmethod
@@ -47,43 +53,106 @@ class PlanRequest(BaseModel):
         return v
 
 
+class GenerateRequest(PlanRequest):
+    model: str = Field(min_length=1)
+
+
+def _records(df):
+    return df.to_dict("records")
+
+
 def options():
-    return {"governorates": [{"name": g, "rain_mm": mm} for g, mm in RAIN_MM.items()],
-            "limits": LIMITS, "budgets": BUDGETS}
+    return {
+        "governorates": [{"name": g, "rain_mm": mm} for g, mm in RAIN_MM.items()],
+        "limits": LIMITS,
+        "budgets": BUDGETS,
+        "years": list(r.YEARS),
+        "models": r.list_models(),
+        "community_max": r.COMMUNITY_MAX_HOMES,
+        "method": {
+            "warnings": r.WARNINGS,
+            "banned_terms": r.BANNED_TERMS,
+            "allowed_phrases": r.ALLOWED_PHRASES,
+            "required_items": r.REQUIRED_ITEMS,
+            "max_attempts": r.MAX_ATTEMPTS,
+            "quantity": [r.QTY_MIN, r.QTY_MAX],
+            "schema": r.Blueprint.model_json_schema(),
+            "ollama_url": r.OLLAMA_URL,
+        },
+        "tables": {
+            "assumptions": _records(ASSUMPTIONS),
+            "rainfall": _records(RAIN),
+            "monthly_share": _records(r.read_table("monthly_share.csv")),
+            "catalog": _records(CATALOG),
+            "plants": _records(PLANTS),
+        },
+    }
 
 
-def plan(req: PlanRequest):
+def _profile(req):
     profile = {"governorate": req.governorate, "rain_mm": RAIN_MM[req.governorate], "roof_m2": req.roof_m2,
                "people": req.people, "showers_pp": req.showers_pp, "laundry_loads": req.laundry_loads,
                "capacity_m3": req.capacity_m3, "year": req.year}
-    res = r.simulate(profile, SHARES, A)
-    blueprints = {b: r.template_blueprint(profile, b, req.lang) for b in BUDGETS}
-    boms = {b: r.price(bp, CATALOG) for b, bp in blueprints.items()}
-    bp, bom = blueprints[req.budget], boms[req.budget]
-    cost = float(bom["total_jod"].sum())
-    name_col = "name_ar" if req.lang == "ar" else "name_en"
+    return profile, r.simulate(profile, SHARES, A)
+
+
+def _plan_block(bp, source, notes, notice, profile, res, homes):
+    """Priced, safety-checked plan plus the numbers that depend on its cost."""
+    bom = r.price(bp, CATALOG)
+    cost = r.plan_cost(bom)
+    imp = r.impact(res["water"], cost, A)
+    name_col = "name_ar" if bp.language == "ar" else "name_en"
     return {
-        "profile": profile,
-        "result": {k: float(res[k]) for k in ("potential", "rain_used", "greywater", "water", "overflow")}
-                  | {"dry_months": res["dry_months"]},
-        "impact": r.impact(res["water"], cost, A),
-        "assumptions": A,
         "plan": {
-            "source": "template",
+            "source": source,
+            "notes": notes,
+            "notice": notice,
+            "checks": [{"rule": rule, "passed": ok} for rule, ok in r.safety_checks(bp)],
             "language": bp.language,
             "summary": bp.summary,
             "rainwater_steps": bp.rainwater_steps,
             "greywater_steps": bp.greywater_steps,
             "plants": [{"plant_id": p.plant_id, "name": PLANT_NAMES.at[p.plant_id, name_col], "reason": p.reason}
                        for p in bp.plants],
-            "bom": bom.drop(columns="why").to_dict("records"),
+            "bom": _records(bom),
             "cost": cost,
         },
-        "budget_costs": {b: float(boms[b]["total_jod"].sum()) for b in BUDGETS},
-        "warnings": r.WARNINGS[req.lang],
-        "disclaimer": r.DISCLAIMER[req.lang],
+        "impact": imp,
+        "payback": r.format_payback(imp["payback_months"]),
+        "community": r.community(res, imp, homes),
         "markdown": r.to_markdown(bp, bom, profile, res),
     }
+
+
+def plan(req: PlanRequest):
+    profile, res = _profile(req)
+    blueprints = {b: r.template_blueprint(profile, b, req.lang) for b in BUDGETS}
+    bp = blueprints[req.budget]
+    return {
+        "profile": profile,
+        "result": {k: float(res[k]) for k in ("potential", "rain_used", "greywater", "water", "overflow")}
+                  | {"dry_months": res["dry_months"]},
+        "balance": _records(res["balance"]),
+        "sareef": r.sareef(res, A, after=True),
+        "assumptions": A,
+        **_plan_block(bp, "template", [], None, profile, res, req.homes),
+        "budget_costs": {b: r.plan_cost(r.price(blueprints[b], CATALOG)) for b in BUDGETS},
+        "warnings": r.WARNINGS[req.lang],
+        "disclaimer": r.DISCLAIMER[req.lang],
+        "prompt": r.build_prompt(profile, res, CATALOG, PLANTS, req.budget, req.lang),
+    }
+
+
+def generate(req: GenerateRequest, chat=None):
+    """Ask the local model for a plan. Every failure ends in the template plan with notes saying why."""
+    profile, res = _profile(req)
+    gen = r.generate(profile, res, CATALOG, PLANTS, req.budget, req.lang, req.model, chat=chat,
+                     max_total_jod=r.budget_cap(A, req.budget))
+    return {"model": req.model,
+            **_plan_block(gen.blueprint, gen.source, gen.notes, r.fallback_notice(gen, req.model), profile, res, req.homes)}
+
+
+ROUTES = {"/api/plan": (PlanRequest, plan), "/api/generate": (GenerateRequest, generate)}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -93,17 +162,27 @@ class Handler(BaseHTTPRequestHandler):
         self.send(404, {"error": "not found"})
 
     def do_POST(self):
-        if self.path != "/api/plan":
+        if self.path not in ROUTES:
             return self.send(404, {"error": "not found"})
-        length = int(self.headers.get("Content-Length") or 0)
-        if length > 1 << 16:
-            return self.send(413, {"error": "request too large"})
         try:
-            req = PlanRequest.model_validate_json(self.rfile.read(length))
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return self.send(400, {"error": "bad Content-Length"})
+        if length < 0:
+            return self.send(400, {"error": "bad Content-Length"})
+        if length > MAX_BODY:
+            return self.send(413, {"error": "request too large"})
+        model, handler = ROUTES[self.path]
+        try:
+            req = model.model_validate_json(self.rfile.read(length))
         except ValidationError as e:
             err = e.errors()[0]
             return self.send(422, {"error": f"{'.'.join(map(str, err['loc']))}: {err['msg']}"})
-        self.send(200, plan(req))
+        try:
+            body = handler(req)
+        except r.InputError as e:
+            return self.send(422, {"error": str(e)})
+        self.send(200, body)
 
     def send(self, code, body):
         data = json.dumps(body, ensure_ascii=False, default=float).encode()

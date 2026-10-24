@@ -602,23 +602,28 @@ def as_model_error(e):
 
 
 def build_prompt(profile, result, catalog, plants, budget, lang):
-    items = allowed_items(catalog, budget)[["item_id", "name_en", "category", "unit"]].to_csv(index=False)
-    ok_plants = plants.loc[plants["greywater_ok"], ["plant_id", "name_en", "note"]].to_csv(index=False)
+    """Fixed text first and the household last, so Ollama reuses the cached prefix between households.
+
+    On a CPU the reply costs far more than the prompt, so the length limits matter most.
+    """
+    items = "\n".join(f"{i}: {n}" for i, n in allowed_items(catalog, budget)[["item_id", "name_en"]].values)
+    ok_plants = ", ".join(plants.loc[plants["greywater_ok"], "plant_id"])
     language = "Modern Standard Arabic" if lang == "ar" else "plain English"
-    return f"""You plan rainwater harvesting and greywater reuse for one household in Jordan.
-Return JSON only, matching the schema. Set "language" to "{lang}" and write all text in {language}.
+    required = ", ".join(REQUIRED_ITEMS)
+    return f"""Plan rainwater harvesting and greywater reuse for a household in Jordan. Reply with compact JSON on one line, matching the schema. Set "language" to "{lang}" and write all text in {language}.
 
-Household: roof {profile['roof_m2']} m², {profile['people']} people, {profile['governorate']}, harvest tank {profile['capacity_m3']} m³, budget "{budget}".
-Engine results (already calculated, do not recompute): rain used {result['rain_used']:.1f} m³/year, greywater reused {result['greywater']:.1f} m³/year, dry months {result['dry_months']}, overflow {result['overflow']:.1f} m³.
+Keep it short:
+- summary: one sentence.
+- rainwater_steps and greywater_steps: exactly 3 each, in build order, under 15 words each.
+- materials: 3 to 6 items, item_id only from the list below, quantity 1 to 50. {required} are added for you.
+- plants: 1 or 2, plant_id only from: {ok_plants}.
+- every reason: under 10 words.
+- Only say what to build and where. Do not discuss prices, water quality or safety; the app adds those.
 
-Rules:
-- Use only item_id values from this catalog. Quantities 1 to 50. Do not mention prices.
+Items ({budget} budget):
 {items}
-- Use only plant_id values from this list:
-{ok_plants}
-- 3 to 5 steps each for rainwater and greywater, short and concrete, in build order.
-- Each reason under 200 characters.
-- Do not write safety warnings, chemicals or drinking advice; the app adds fixed warnings itself.
+
+Household: {profile['governorate']}, roof {profile['roof_m2']:g} m², {profile['people']} people, tank {profile['capacity_m3']:g} m³. Rain used {result['rain_used']:.1f} m³/yr, greywater {result['greywater']:.1f} m³/yr, {result['dry_months']} dry months, overflow {result['overflow']:.1f} m³.
 """
 
 

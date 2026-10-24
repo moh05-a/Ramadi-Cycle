@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Literal, NamedTuple
 
 import pandas as pd
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 DATA = Path(__file__).parent / "data"
 OLLAMA_URL = "http://localhost:11434"
@@ -119,21 +119,67 @@ def assumption_values(assumptions):
 
 # ---------------------------------------------------------------- engine
 
+# Calendar and unit facts, not assumptions: 1 mm of rain on 1 m² is 1 L.
+DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+WEEKS_PER_YEAR = 52
+LITRES_PER_M3 = 1000
+MM_PER_M = 1000
+
+
+class InputError(ValueError):
+    """A household input is missing, negative or not one of the allowed choices."""
+
+
+class Profile(BaseModel):
+    """Household inputs from the sidebar, checked before they reach the engine."""
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    governorate: str = Field(min_length=1)
+    rain_mm: float = Field(ge=0)
+    roof_m2: float = Field(ge=0)
+    people: int = Field(ge=0)
+    showers_pp: float = Field(ge=0)
+    laundry_loads: float = Field(ge=0)
+    capacity_m3: float = Field(ge=0)
+    year: Literal["dry", "average", "wet"]
+
+
+def check_profile(profile):
+    """Return the profile as a plain dict, or raise InputError with the first bad field."""
+    try:
+        return Profile.model_validate(profile).model_dump()
+    except ValidationError as e:
+        err = e.errors()[0]
+        raise InputError(f"{'.'.join(map(str, err['loc'])) or 'profile'}: {err['msg']}") from None
+
+
+def make_profile(rain, governorate, roof_m2, people, showers_pp, laundry_loads, capacity_m3, year):
+    """Build a checked profile, taking annual rainfall for the governorate from rainfall.csv."""
+    by_gov = rain.set_index("governorate")["annual_mm"]
+    if governorate not in by_gov.index:
+        raise InputError(f"governorate: unknown {governorate!r}")
+    return check_profile({"governorate": governorate, "rain_mm": float(by_gov[governorate]), "roof_m2": roof_m2,
+                          "people": people, "showers_pp": showers_pp, "laundry_loads": laundry_loads,
+                          "capacity_m3": capacity_m3, "year": year})
+
+
 def annual_potential(roof_m2, rain_m, runoff):
     return roof_m2 * rain_m * runoff
 
 
 def water_balance(roof_m2, rain_m, shares, k, runoff, first_flush, capacity_m3, demand_m3):
-    """Monthly harvest-tank balance. demand_m3 is a list of 12 monthly demands. Tank starts empty in January."""
+    """Monthly harvest-tank balance in m³. demand_m3 is a list of 12 monthly demands. Tank starts empty in January.
+
+    Every month: start + inflow = met + overflow + level.
+    """
     level, rows = 0.0, []
-    for month, s, d in zip(MONTHS, shares, demand_m3):
+    for month, s, d in zip(MONTHS, shares, demand_m3, strict=True):
         inflow = roof_m2 * (rain_m * s * k) * runoff * (1 - first_flush)
-        available = level + inflow
-        shortfall = max(0.0, d - available)
-        overflow = max(0.0, available - d - capacity_m3)
-        level = min(capacity_m3, max(0.0, available - d))
-        rows.append({"month": month, "inflow": inflow, "demand": d, "met": d - shortfall,
-                     "shortfall": shortfall, "overflow": overflow, "level": level})
+        start, available = level, level + inflow
+        met = min(d, available)
+        level = min(capacity_m3, available - met)
+        overflow = available - met - level
+        rows.append({"month": month, "start": start, "inflow": inflow, "demand": d, "met": met,
+                     "shortfall": d - met, "overflow": overflow, "level": level})
     return pd.DataFrame(rows)
 
 
@@ -142,26 +188,29 @@ def greywater_week(people, showers_pp, laundry_loads, a):
     litres = (people * showers_pp * a["litres_per_shower"]
               + laundry_loads * a["litres_per_laundry_load"]
               + people * a["sink_litres_per_person_week"])
-    return litres * a["greywater_recovery"] / 1000
+    return litres * a["greywater_recovery"] / LITRES_PER_M3
 
 
 def impact(water_m3, system_cost, a):
+    """Yearly impact of water_m3 no longer bought. Trips are fractional; payback is None when nothing is saved."""
     s, T = a["tanker_share"], a["tanker_volume"]
     trips = water_m3 * s / T
     jod = trips * a["tanker_price"] + water_m3 * (1 - s) * a["municipal_tariff"]
     co2 = trips * a["diesel_per_trip"] * a["diesel_co2"] + water_m3 * a["pump_energy"] * a["grid_co2"]
-    payback = 12 * system_cost / jod if jod > 0 else None
+    payback = len(MONTHS) * system_cost / jod if jod > 0 else None
     return {"trips": trips, "jod": jod, "co2": co2, "payback_months": payback}
 
 
 def simulate(profile, shares, a):
-    """Run the whole household model. profile keys: roof_m2, rain_mm, year, people, showers_pp, laundry_loads, capacity_m3."""
+    """Run the whole household model. profile keys: see Profile. Volumes in m³ per year."""
+    profile = check_profile(profile)
     k = a[f"year_multiplier_{profile['year']}"]
-    rain_m = profile["rain_mm"] / 1000
-    monthly_demand = profile["people"] * a["nonpotable_litres_per_person_day"] * 30.4 / 1000
+    rain_m = profile["rain_mm"] / MM_PER_M
+    litres_day = profile["people"] * a["nonpotable_litres_per_person_day"]
+    monthly_demand = [litres_day * days / LITRES_PER_M3 for days in DAYS_IN_MONTH]
     bal = water_balance(profile["roof_m2"], rain_m, shares, k, a["runoff_coefficient"], a["first_flush_loss"],
-                        profile["capacity_m3"], [monthly_demand] * 12)
-    grey = greywater_week(profile["people"], profile["showers_pp"], profile["laundry_loads"], a) * 52
+                        profile["capacity_m3"], monthly_demand)
+    grey = greywater_week(profile["people"], profile["showers_pp"], profile["laundry_loads"], a) * WEEKS_PER_YEAR
     rain_used = bal["met"].sum()
     return {
         "balance": bal,

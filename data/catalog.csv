@@ -1,16 +1,16 @@
-item_id,name_en,name_ar,category,unit,price_jod,budget_level,source
-first_flush,First-flush diverter kit,محوّل مياه الدفقة الأولى,rainwater,kit,15,both,Placeholder; get local quote
-leaf_screen,Gutter leaf screen,شبك لمنع أوراق الشجر,rainwater,piece,5,both,Placeholder; get local quote
-gutter_pvc,PVC roof gutter,مزراب بلاستيك PVC,rainwater,m,3,both,Placeholder; get local quote
-downpipe_110,110 mm downpipe,ماسورة تصريف 110 ملم,rainwater,3 m length,6,both,Placeholder; get local quote
-tank_1m3,1 m³ plastic storage tank,خزان بلاستيك 1 م³,rainwater,piece,90,low,Placeholder; get local quote
-tank_2m3,2 m³ plastic storage tank,خزان بلاستيك 2 م³,rainwater,piece,160,full,Placeholder; get local quote
-transfer_pump,Small transfer pump,مضخة نقل صغيرة,rainwater,piece,60,full,Placeholder; get local quote
-float_switch,Pump float switch,عوامة تشغيل المضخة,rainwater,piece,12,full,Placeholder; get local quote
-gw_valve,Three-way greywater diverter valve,محبس تحويل ثلاثي للمياه الرمادية,greywater,piece,18,both,Placeholder; get local quote
-gw_drum,200 L surge drum with lid,برميل 200 لتر مع غطاء,greywater,piece,20,low,Placeholder; get local quote
-gw_filter,Greywater mesh filter,فلتر شبكي للمياه الرمادية,greywater,piece,25,both,Placeholder; get local quote
-gw_pipe_40,40 mm drain pipe,ماسورة 40 ملم,greywater,3 m length,4,both,Placeholder; get local quote
-drip_kit,Drip irrigation kit,طقم ري بالتنقيط,greywater,kit,30,both,Placeholder; get local quote
-mulch_basin,Mulch basin materials,مواد حوض تغطية (ملش),greywater,basin,8,low,Placeholder; get local quote
-label_kit,Non-potable warning labels,ملصقات تحذير: مياه غير صالحة للشرب,safety,set,3,both,Placeholder; get local quote
+item_id,name_en,name_ar,category,unit,price_jod,budget_level,source,status
+first_flush,First-flush diverter kit,محوّل مياه الدفقة الأولى,rainwater,kit,15,both,Placeholder; get local quote,placeholder
+leaf_screen,Gutter leaf screen,شبك لمنع أوراق الشجر,rainwater,piece,5,both,Placeholder; get local quote,placeholder
+gutter_pvc,PVC roof gutter,مزراب بلاستيك PVC,rainwater,m,3,both,Placeholder; get local quote,placeholder
+downpipe_110,110 mm downpipe,ماسورة تصريف 110 ملم,rainwater,3 m length,6,both,Placeholder; get local quote,placeholder
+tank_1m3,1 m³ plastic storage tank,خزان بلاستيك 1 م³,rainwater,piece,90,low,Placeholder; get local quote,placeholder
+tank_2m3,2 m³ plastic storage tank,خزان بلاستيك 2 م³,rainwater,piece,160,full,Placeholder; get local quote,placeholder
+transfer_pump,Small transfer pump,مضخة نقل صغيرة,rainwater,piece,60,full,Placeholder; get local quote,placeholder
+float_switch,Pump float switch,عوامة تشغيل المضخة,rainwater,piece,12,full,Placeholder; get local quote,placeholder
+gw_valve,Three-way greywater diverter valve,محبس تحويل ثلاثي للمياه الرمادية,greywater,piece,18,both,Placeholder; get local quote,placeholder
+gw_drum,200 L surge drum with lid,برميل 200 لتر مع غطاء,greywater,piece,20,low,Placeholder; get local quote,placeholder
+gw_filter,Greywater mesh filter,فلتر شبكي للمياه الرمادية,greywater,piece,25,both,Placeholder; get local quote,placeholder
+gw_pipe_40,40 mm drain pipe,ماسورة 40 ملم,greywater,3 m length,4,both,Placeholder; get local quote,placeholder
+drip_kit,Drip irrigation kit,طقم ري بالتنقيط,greywater,kit,30,both,Placeholder; get local quote,placeholder
+mulch_basin,Mulch basin materials,مواد حوض تغطية (ملش),greywater,basin,8,low,Placeholder; get local quote,placeholder
+label_kit,Non-potable warning labels,ملصقات تحذير: مياه غير صالحة للشرب,safety,set,3,both,Placeholder; get local quote,placeholder

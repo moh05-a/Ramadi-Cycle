@@ -1,14 +1,14 @@
-plant_id,name_en,name_ar,greywater_ok,note
-olive,Olive tree,شجرة زيتون,true,Drip to the root zone under mulch; fruit is not touched by water
-fig,Fig tree,شجرة تين,true,Drip under mulch; keep water off fruit
-pomegranate,Pomegranate,رمان,true,Drought tolerant; drip under mulch
-grape,Grape vine,دالية عنب,true,Water the soil; keep water off the fruit
-lemon,Lemon tree,شجرة ليمون,true,Drip under mulch
-rosemary,Rosemary (ornamental hedge),إكليل الجبل (سياج زينة),true,Use as hedge only; do not harvest for eating
-lavender,Lavender,خزامى,true,Ornamental; drought tolerant
-bougainvillea,Bougainvillea,جهنمية,true,Ornamental climber
-mint,Mint,نعنع,false,Leaves eaten raw; use rain or mains water
-parsley,Parsley,بقدونس,false,Leaves eaten raw; use rain or mains water
-lettuce,Lettuce,خس,false,Leaves eaten raw; use rain or mains water
-thyme,Thyme (za'atar),زعتر,false,Leaves eaten raw; use rain or mains water
-radish,Radish,فجل,false,Root eaten raw; use rain or mains water
+plant_id,name_en,name_ar,greywater_ok,note,source,status
+olive,Olive tree,شجرة زيتون,true,Drip to the root zone under mulch; fruit is not touched by water,Not recorded; needs an agronomy or health source,unverified
+fig,Fig tree,شجرة تين,true,Drip under mulch; keep water off fruit,Not recorded; needs an agronomy or health source,unverified
+pomegranate,Pomegranate,رمان,true,Drought tolerant; drip under mulch,Not recorded; needs an agronomy or health source,unverified
+grape,Grape vine,دالية عنب,true,Water the soil; keep water off the fruit,Not recorded; needs an agronomy or health source,unverified
+lemon,Lemon tree,شجرة ليمون,true,Drip under mulch,Not recorded; needs an agronomy or health source,unverified
+rosemary,Rosemary (ornamental hedge),إكليل الجبل (سياج زينة),true,Use as hedge only; do not harvest for eating,Not recorded; needs an agronomy or health source,unverified
+lavender,Lavender,خزامى,true,Ornamental; drought tolerant,Not recorded; needs an agronomy or health source,unverified
+bougainvillea,Bougainvillea,جهنمية,true,Ornamental climber,Not recorded; needs an agronomy or health source,unverified
+mint,Mint,نعنع,false,Leaves eaten raw; use rain or mains water,Not recorded; needs an agronomy or health source,unverified
+parsley,Parsley,بقدونس,false,Leaves eaten raw; use rain or mains water,Not recorded; needs an agronomy or health source,unverified
+lettuce,Lettuce,خس,false,Leaves eaten raw; use rain or mains water,Not recorded; needs an agronomy or health source,unverified
+thyme,Thyme (za'atar),زعتر,false,Leaves eaten raw; use rain or mains water,Not recorded; needs an agronomy or health source,unverified
+radish,Radish,فجل,false,Root eaten raw; use rain or mains water,Not recorded; needs an agronomy or health source,unverified

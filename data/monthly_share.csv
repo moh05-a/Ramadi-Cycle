@@ -1,13 +1,13 @@
-month,share_of_annual_rain,source
-Jan,0.24,Placeholder; replace with station data
-Feb,0.20,Placeholder; replace with station data
-Mar,0.15,Placeholder; replace with station data
-Apr,0.07,Placeholder; replace with station data
-May,0.02,Placeholder; replace with station data
-Jun,0.00,Placeholder; replace with station data
-Jul,0.00,Placeholder; replace with station data
-Aug,0.00,Placeholder; replace with station data
-Sep,0.00,Placeholder; replace with station data
-Oct,0.04,Placeholder; replace with station data
-Nov,0.10,Placeholder; replace with station data
-Dec,0.18,Placeholder; replace with station data
+month,share_of_annual_rain,source,status
+Jan,0.24,Placeholder; replace with station data,placeholder
+Feb,0.20,Placeholder; replace with station data,placeholder
+Mar,0.15,Placeholder; replace with station data,placeholder
+Apr,0.07,Placeholder; replace with station data,placeholder
+May,0.02,Placeholder; replace with station data,placeholder
+Jun,0.00,Placeholder; replace with station data,placeholder
+Jul,0.00,Placeholder; replace with station data,placeholder
+Aug,0.00,Placeholder; replace with station data,placeholder
+Sep,0.00,Placeholder; replace with station data,placeholder
+Oct,0.04,Placeholder; replace with station data,placeholder
+Nov,0.10,Placeholder; replace with station data,placeholder
+Dec,0.18,Placeholder; replace with station data,placeholder

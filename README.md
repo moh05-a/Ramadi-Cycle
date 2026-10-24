@@ -39,6 +39,7 @@ Python calculates every number, price and safety rule. The local model only pick
 | `data/*.csv` | Rainfall, monthly shares, catalog, plants, assumptions. Every constant lives here |
 | `PRD.md` | Product requirements |
 | `BRAND.md` | Name, mark, colour, type, voice |
+| `docs/` | Original project documentation |
 
 ## Limits
 

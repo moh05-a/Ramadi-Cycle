@@ -384,3 +384,65 @@ def test_every_assumption_used_in_code_is_in_csv():
     used |= {f"year_multiplier_{y}" for y in r.YEARS}
     assert used <= set(assumptions["parameter"])
     assert set(r.PARAMETERS) <= set(assumptions["parameter"])
+
+
+# ---------------------------------------------------------------- audit: monotonicity, linearity, determinism
+
+import math
+import random
+
+
+def water_used(**over):
+    p = profile_for(over.pop("gov", "Irbid"), over.pop("roof", 120), over.pop("cap", 2.0), over.pop("people", 5),
+                    over.pop("year", "average"))
+    return r.simulate(p, shares, a)
+
+
+@settings(max_examples=150, deadline=None)
+@given(gov=hs.sampled_from(GOVS), roof=hs.floats(0, 1000), extra=hs.floats(0, 500), cap=hs.floats(0.5, 10),
+       people=hs.integers(0, 12))
+def test_larger_roof_never_captures_less(gov, roof, extra, cap, people):
+    small, big = water_used(gov=gov, roof=roof, cap=cap, people=people), water_used(gov=gov, roof=roof + extra, cap=cap, people=people)
+    assert big["potential"] >= small["potential"] - 1e-9
+    assert big["rain_used"] >= small["rain_used"] - 1e-9
+
+
+@settings(max_examples=150, deadline=None)
+@given(gov=hs.sampled_from(GOVS), roof=hs.floats(0, 400), cap=hs.floats(0, 10), extra=hs.floats(0, 10),
+       people=hs.integers(0, 12))
+def test_larger_tank_never_supplies_less(gov, roof, cap, extra, people):
+    small, big = water_used(gov=gov, roof=roof, cap=cap, people=people), water_used(gov=gov, roof=roof, cap=cap + extra, people=people)
+    assert big["water"] >= small["water"] - 1e-9
+
+
+def test_greywater_scales_linearly_with_people_when_laundry_fixed():
+    g1, g3 = r.greywater_week(1, 5, 0, a), r.greywater_week(3, 5, 0, a)
+    assert g3 == pytest.approx(3 * g1) and g1 > 0
+
+
+@pytest.mark.parametrize("water", [0.0, 1.0, 10.0, 100.0])
+def test_impact_never_negative_and_grows_with_water(water):
+    lo, hi = r.impact(water, 500, a), r.impact(water + 5, 500, a)
+    assert all(lo[k] >= 0 for k in ("trips", "jod", "co2"))
+    assert hi["trips"] > lo["trips"] and hi["jod"] > lo["jod"] and hi["co2"] > lo["co2"]
+
+
+def test_same_inputs_give_identical_outputs():
+    one, two = water_used(), water_used()
+    assert one["balance"].equals(two["balance"])
+    assert {k: v for k, v in one.items() if k != "balance"} == {k: v for k, v in two.items() if k != "balance"}
+
+
+def test_200_random_households_fixed_seed():
+    rng = random.Random(2026)
+    for _ in range(200):
+        p = r.make_profile(rain, rng.choice(GOVS), rng.uniform(0, 400), rng.randint(0, 12), rng.randint(0, 14),
+                           rng.randint(0, 14), rng.uniform(0.5, 10), rng.choice(r.YEARS))
+        res = r.simulate(p, shares, a)
+        b = res["balance"]
+        assert not b[FLOWS].isna().any().any() and (b[FLOWS] >= -1e-12).all().all()
+        assert all(not math.isnan(res[k]) and res[k] >= 0 for k in ("potential", "rain_used", "greywater", "water", "overflow"))
+        assert ((b["start"] + b["inflow"]) - (b["met"] + b["overflow"] + b["level"])).abs().max() < 1e-6
+        imp = r.impact(res["water"], r.system_cost(p, "low", catalog), a)
+        assert all(not math.isnan(imp[k]) and math.isfinite(imp[k]) for k in ("trips", "jod", "co2"))
+        assert imp["payback_months"] is None or math.isfinite(imp["payback_months"])

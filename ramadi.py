@@ -361,6 +361,16 @@ WRONG_SCRIPT = "wrong_script"
 SCRIPT_MAX_FOREIGN = 0.3  # share of letters from the other script above which a plan is rejected
 
 
+ID_SHOWN_MAX = 40
+_UNSAFE_ID = re.compile(r"[^A-Za-z0-9_.:-]")
+
+
+def shown_id(value):
+    """A model-chosen ID as it may appear in a notice or a retry prompt: safe characters only, length capped,
+    so a made-up ID can't carry Markdown, links or a long injected instruction onto the screen or back in."""
+    return _UNSAFE_ID.sub("?", str(value))[:ID_SHOWN_MAX]
+
+
 class Rejection(NamedTuple):
     code: str
     detail: str = ""
@@ -439,16 +449,16 @@ def validate(raw, catalog, plants, budget, lang=None, max_total_jod=None, profil
     ok_items = set(allowed_items(catalog, budget)["item_id"])
     for m in bp.materials:
         if m.item_id not in known_items:
-            return None, Rejection(UNKNOWN_ITEM, m.item_id)
+            return None, Rejection(UNKNOWN_ITEM, shown_id(m.item_id))
         if m.item_id not in ok_items:
-            return None, Rejection(ITEM_OVER_BUDGET, m.item_id)
+            return None, Rejection(ITEM_OVER_BUDGET, shown_id(m.item_id))
     known_plants = set(plants["plant_id"])
     ok_plants = set(plants.loc[plants["greywater_ok"], "plant_id"])
     for p in bp.plants:
         if p.plant_id not in known_plants:
-            return None, Rejection(UNKNOWN_PLANT, p.plant_id)
+            return None, Rejection(UNKNOWN_PLANT, shown_id(p.plant_id))
         if p.plant_id not in ok_plants:
-            return None, Rejection(PLANT_NOT_GREYWATER_SAFE, p.plant_id)
+            return None, Rejection(PLANT_NOT_GREYWATER_SAFE, shown_id(p.plant_id))
     text = " \n ".join([bp.summary, *bp.greywater_steps, *bp.rainwater_steps,
                         *(m.reason for m in bp.materials), *(p.reason for p in bp.plants)])
     if term := find_banned(text):
@@ -990,12 +1000,12 @@ def validate_garden(raw, ctx, garden, plants, lang=None):
     unsafe = set(plants.loc[~plants["greywater_ok"], "plant_id"])
     for p in plan.plants:
         if p.plant_id in seen:
-            return None, Rejection(DUPLICATE_PLANT, f"{p.plant_id} is listed twice; give it one count")
+            return None, Rejection(DUPLICATE_PLANT, f"{shown_id(p.plant_id)} is listed twice; give it one count")
         seen.add(p.plant_id)
         if p.plant_id in unsafe:
-            return None, Rejection(PLANT_NOT_GREYWATER_SAFE, f"{p.plant_id} is eaten raw and cannot take greywater")
+            return None, Rejection(PLANT_NOT_GREYWATER_SAFE, f"{shown_id(p.plant_id)} is eaten raw and cannot take greywater")
         if p.plant_id not in garden.plants.index:
-            return None, Rejection(UNKNOWN_PLANT, f"{p.plant_id} is not on the plant list")
+            return None, Rejection(UNKNOWN_PLANT, f"{shown_id(p.plant_id)} is not on the plant list")
     if (area := garden_area(plan.plants, garden)) > ctx["garden_m2"]:
         return None, Rejection(GARDEN_TOO_BIG, f"the plants cover {area:.0f} m² but the garden is {ctx['garden_m2']:.0f} m²")
     demand = garden_demand(plan.plants, ctx)

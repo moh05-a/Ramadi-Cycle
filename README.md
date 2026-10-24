@@ -22,6 +22,15 @@ ollama pull qwen3:4b      # or gemma3:4b, llama3.2:3b, any model Ollama serves
 
 Installed models appear in the sidebar. Switch between them freely.
 
+### Web interface (React)
+
+A second interface built from the brand kit. It gets every number, plan line and warning from `ramadi.py` through a small local API.
+
+```bash
+python api.py                         # terminal 1: API on 127.0.0.1:8000
+cd frontend && npm install && npm run dev   # terminal 2: http://localhost:5173
+```
+
 ## Test
 
 ```bash
@@ -36,6 +45,8 @@ Python calculates every number, price and safety rule. The local model only pick
 | --- | --- |
 | `ramadi.py` | Water-balance engine, schema, safety rules, Ollama call, template plan |
 | `app.py` | Streamlit interface |
+| `api.py` | Local JSON API over `ramadi.py` for the web interface. No logic of its own |
+| `frontend/` | React web interface (v3 design), built on `brand-kit/` |
 | `data/*.csv` | Rainfall, monthly shares, catalog, plants, assumptions. Every constant lives here |
 | `PRD.md` | Product requirements |
 | `BRAND.md` | Name, mark, colour, type, voice |

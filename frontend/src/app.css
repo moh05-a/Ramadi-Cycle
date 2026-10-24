@@ -185,7 +185,7 @@ body { margin: 0; background: var(--rc-bg); }
 .app-data { font-size: var(--rc-text-sm); }
 .app-data td { white-space: normal; }
 .app-pill { display: inline-block; padding: 1px 8px; border: 1px solid currentColor; border-radius: var(--rc-radius); font-size: var(--rc-text-xs); font-weight: 600; color: var(--rc-stone); }
-.app-pill.is-verified { color: var(--rc-olive); }
+.app-pill.is-verified, .app-pill.is-sourced { color: var(--rc-olive); }
 .app-pill.is-unknown, .app-pill.is-placeholder { color: var(--rc-rust); }
 
 @media (max-width: 640px) {

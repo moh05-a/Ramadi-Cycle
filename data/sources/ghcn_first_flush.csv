@@ -1,0 +1,2 @@
+station,name,first_flush_fraction,rain_days,total_mm,period,source,retrieved
+JOM00040265,Mafraq (King Hussein Air Base),0.149,541,3210,1991-2020,"NOAA GHCN-Daily PRCP, unflagged reports",2026-10-24

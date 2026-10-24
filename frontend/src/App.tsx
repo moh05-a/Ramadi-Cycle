@@ -490,7 +490,7 @@ function Method({ data, options, lang, model }: { data: PlanResponse; options: O
 function Assumptions({ options, lang }: { options: Options; lang: Lang }) {
   const t = COPY[lang];
   const rows = options.tables.assumptions;
-  const verified = rows.filter((r) => r.status === "verified").length;
+  const verified = rows.filter((r) => r.status === "verified" || r.status === "sourced").length;
   return (
     <details className="app-panel app-details app-method noprint">
       <summary>{t.data}</summary>

@@ -1,13 +1,13 @@
 month,share_of_annual_rain,source,status
-Jan,0.24,Placeholder; replace with station data,placeholder
-Feb,0.20,Placeholder; replace with station data,placeholder
-Mar,0.15,Placeholder; replace with station data,placeholder
-Apr,0.07,Placeholder; replace with station data,placeholder
-May,0.02,Placeholder; replace with station data,placeholder
-Jun,0.00,Placeholder; replace with station data,placeholder
-Jul,0.00,Placeholder; replace with station data,placeholder
-Aug,0.00,Placeholder; replace with station data,placeholder
-Sep,0.00,Placeholder; replace with station data,placeholder
-Oct,0.04,Placeholder; replace with station data,placeholder
-Nov,0.10,Placeholder; replace with station data,placeholder
-Dec,0.18,Placeholder; replace with station data,placeholder
+Jan,0.257,Mean of JMD station shares: Amman Airport 1989-2018 + Irbid 1985-2018 + Karak (Rabba) 1989-2018,sourced
+Feb,0.241,Mean of JMD station shares: Amman Airport 1989-2018 + Irbid 1985-2018 + Karak (Rabba) 1989-2018,sourced
+Mar,0.141,Mean of JMD station shares: Amman Airport 1989-2018 + Irbid 1985-2018 + Karak (Rabba) 1989-2018,sourced
+Apr,0.043,Mean of JMD station shares: Amman Airport 1989-2018 + Irbid 1985-2018 + Karak (Rabba) 1989-2018,sourced
+May,0.015,Mean of JMD station shares: Amman Airport 1989-2018 + Irbid 1985-2018 + Karak (Rabba) 1989-2018,sourced
+Jun,0.001,Mean of JMD station shares: Amman Airport 1989-2018 + Irbid 1985-2018 + Karak (Rabba) 1989-2018,sourced
+Jul,0.000,Mean of JMD station shares: Amman Airport 1989-2018 + Irbid 1985-2018 + Karak (Rabba) 1989-2018,sourced
+Aug,0.000,Mean of JMD station shares: Amman Airport 1989-2018 + Irbid 1985-2018 + Karak (Rabba) 1989-2018,sourced
+Sep,0.001,Mean of JMD station shares: Amman Airport 1989-2018 + Irbid 1985-2018 + Karak (Rabba) 1989-2018,sourced
+Oct,0.026,Mean of JMD station shares: Amman Airport 1989-2018 + Irbid 1985-2018 + Karak (Rabba) 1989-2018,sourced
+Nov,0.088,Mean of JMD station shares: Amman Airport 1989-2018 + Irbid 1985-2018 + Karak (Rabba) 1989-2018,sourced
+Dec,0.187,Mean of JMD station shares: Amman Airport 1989-2018 + Irbid 1985-2018 + Karak (Rabba) 1989-2018,sourced

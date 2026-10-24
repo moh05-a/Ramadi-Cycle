@@ -199,8 +199,8 @@ with method_tab:
 # ---------------------------------------------------------------- assumptions
 
 with data_tab:
-    n_verified = int((assumptions["status"] == "verified").sum())
-    st.markdown(f"Every constant the app uses. {n_verified} of {len(assumptions)} verified. "
+    n_sourced = int(assumptions["status"].isin(["verified", "sourced"]).sum())
+    st.markdown(f"Every constant the app uses. {n_sourced} of {len(assumptions)} have a published source. "
                 "Fix one with a pull request to `data/`.")
     st.dataframe(assumptions, hide_index=True, width="stretch")
     st.markdown("**Rainfall by governorate**")

@@ -1,18 +1,18 @@
 parameter,value,unit,source,status
-runoff_coefficient,0.85,fraction,Project brief (concrete roof),unverified
-first_flush_loss,0.10,fraction,Placeholder,unknown
-year_multiplier_dry,0.7,factor,Placeholder,placeholder
-year_multiplier_average,1.0,factor,Placeholder,placeholder
-year_multiplier_wet,1.3,factor,Placeholder,placeholder
+runoff_coefficient,0.85,fraction,Within the 0.80-0.95 range for concrete or tiled roofs in Indian Standard IS 15998:2011,sourced
+first_flush_loss,0.15,fraction,Measured: 1 mm diverted per rain day over 541 rain days at Mafraq 1991-2020 (NOAA GHCN-Daily; data/sources/ghcn_first_flush.csv),sourced
+year_multiplier_dry,0.64,factor,10th percentile rain season over the mean; median across governorates; NASA POWER 1991-2020 (data/sources/nasa_power_rainfall.csv),sourced
+year_multiplier_average,1.0,factor,Mean season by definition,sourced
+year_multiplier_wet,1.34,factor,90th percentile rain season over the mean; median across governorates; NASA POWER 1991-2020 (data/sources/nasa_power_rainfall.csv),sourced
 nonpotable_litres_per_person_day,30,L,Placeholder (toilet flushing and floor cleaning),unknown
 tanker_share,0.5,fraction,Placeholder (share of saved water that would have come by tanker),unknown
 tanker_volume,5,m³,Placeholder,unknown
-tanker_price,25,JOD/trip,Project brief (20 to 30 JOD),unverified
-municipal_tariff,1.0,JOD/m³,Placeholder,unknown
+tanker_price,25,JOD/trip,About 5 JOD/m3 tanker water in normal times (Jordan News 2026; up to 20-30 JOD/m3 in shortages) x tanker_volume,sourced
+municipal_tariff,0.5,JOD/m³,Midpoint of 0.4-0.6 JOD/m3 paid by 80% of residential subscribers (Jordan Times; WAJ tariff 2023-2029),sourced
 diesel_per_trip,4,L,Placeholder,unknown
-diesel_co2,2.68,kg CO2/L,Standard factor recalled from memory,unverified
-pump_energy,0.5,kWh/m³,Placeholder,unknown
-grid_co2,0.45,kg CO2/kWh,Placeholder,unknown
+diesel_co2,2.7,kg CO2/L,US EPA GHG Emission Factors Hub: 10.21 kg CO2 per US gallon of diesel / 3.785 L,sourced
+pump_energy,3.4,kWh/m³,Energy intensity of supplied water excluding non-revenue water; MWI Energy Efficiency and Renewable Energy Policy for the Water Sector (2019 data),sourced
+grid_co2,0.53,kg CO2/kWh,Jordan grid carbon intensity 2024: 529.79 g CO2e/kWh; Ember via Our World in Data open API (carbon-intensity-electricity),sourced
 greywater_recovery,0.8,fraction,Placeholder,unknown
 litres_per_shower,40,L,Placeholder,unknown
 litres_per_laundry_load,60,L,Placeholder,unknown

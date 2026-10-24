@@ -114,7 +114,7 @@ export const COPY: Record<Lang, Copy> = {
     modelHeading: "Model", modelLine: (m, url) => `${m} through Ollama at ${url}. Nothing leaves this laptop.`,
     modelNone: "No model running. Built-in plan only.", prompt: "Instructions sent to the model",
     data: "Assumptions and sources",
-    dataIntro: (v, n) => `Every number the calculator uses, with its source. ${v} of ${n} are verified so far. Fix one with a pull request to data/.`,
+    dataIntro: (v, n) => `Every number the calculator uses, with its source. ${v} of ${n} have a published source so far. Fix one with a pull request to data/.`,
     tables: { assumptions: "Assumptions", rainfall: "Rainfall by governorate", monthly_share: "Rain by month", catalog: "Parts and prices", plants: "Plants" },
     columns: {},
     govNames: {},
@@ -190,7 +190,7 @@ export const COPY: Record<Lang, Copy> = {
     modelHeading: "النموذج", modelLine: (m, url) => `${m} عبر Ollama على ${url}. لا يغادر أي شيء هذا الجهاز.`,
     modelNone: "لا يوجد نموذج مشغّل. الخطة الجاهزة فقط.", prompt: "التعليمات المرسلة إلى النموذج",
     data: "الافتراضات والمصادر",
-    dataIntro: (v, n) => `كل رقم تستخدمه الحاسبة مع مصدره. تم التحقق من ${v} من ${n} حتى الآن. صحّح أي رقم بطلب دمج إلى data/.`,
+    dataIntro: (v, n) => `كل رقم تستخدمه الحاسبة مع مصدره. لـ ${v} من ${n} مصدر منشور حتى الآن. صحّح أي رقم بطلب دمج إلى data/.`,
     tables: { assumptions: "الافتراضات", rainfall: "الأمطار حسب المحافظة", monthly_share: "المطر حسب الشهر", catalog: "المواد والأسعار", plants: "النباتات" },
     columns: {
       parameter: "المعامل", value: "القيمة", unit: "الوحدة", source: "المصدر", status: "الحالة", governorate: "المحافظة",
@@ -268,7 +268,7 @@ export const PAGES: Record<Lang, PageCopy> = {
     dash: {
       title: "Your savings", edit: "Edit home details", co2: "CO₂ cut",
       planTitle: "Your build plan", planCost: "Parts cost", planSteps: (n) => `${n} build steps`, planCta: "Open build plan",
-      dataTitle: "How sure are these numbers?", dataBody: (v, n) => `${v} of ${n} assumptions are verified. The rest are placeholders until someone checks them.`,
+      dataTitle: "How sure are these numbers?", dataBody: (v, n) => `${v} of ${n} assumptions have a published source. The rest are placeholders until someone finds one.`,
       dataCta: "See every assumption", noData: "Waiting for the calculator…",
       firstVisit: "These numbers use example details.", firstCta: "Enter your home",
     },
@@ -307,7 +307,7 @@ export const PAGES: Record<Lang, PageCopy> = {
     dash: {
       title: "ما توفّره", edit: "عدّل معلومات البيت", co2: "خفض ثاني أكسيد الكربون",
       planTitle: "خطة التنفيذ", planCost: "تكلفة المواد", planSteps: (n) => `${n} خطوات تنفيذ`, planCta: "افتح خطة التنفيذ",
-      dataTitle: "ما مدى دقة هذه الأرقام؟", dataBody: (v, n) => `تم التحقق من ${v} من ${n} افتراضاً. البقية مؤقتة حتى يتحقق منها أحد.`,
+      dataTitle: "ما مدى دقة هذه الأرقام؟", dataBody: (v, n) => `لـ ${v} من ${n} افتراضاً مصدر منشور. البقية مؤقتة حتى يجد أحد مصدراً لها.`,
       dataCta: "اعرض كل الافتراضات", noData: "بانتظار الحاسبة…",
       firstVisit: "هذه الأرقام مبنية على معلومات توضيحية.", firstCta: "أدخل معلومات بيتك",
     },

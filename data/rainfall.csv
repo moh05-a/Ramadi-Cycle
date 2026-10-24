@@ -1,14 +1,14 @@
 governorate,annual_mm,source,status
-Amman (west),450,Project brief range; replace with JMD station value,unverified
-Amman (east),270,Unverified estimate; replace with JMD station value,unverified
-Zarqa,130,Unverified estimate; replace with JMD station value,unverified
-Irbid,470,Unverified estimate; replace with JMD station value,unverified
-Ajloun,580,Unverified estimate; replace with JMD station value,unverified
-Jerash,400,Unverified estimate; replace with JMD station value,unverified
-Balqa (Salt),550,Project brief range; replace with JMD station value,unverified
-Madaba,350,Unverified estimate; replace with JMD station value,unverified
-Mafraq,150,Project brief range; replace with JMD station value,unverified
-Karak,350,Unverified estimate; replace with JMD station value,unverified
-Tafilah,280,Unverified estimate; replace with JMD station value,unverified
-Ma'an,50,Unverified estimate; replace with JMD station value,unverified
-Aqaba,30,Unverified estimate; replace with JMD station value,unverified
+Amman (west),525.0,JMD University of Jordan station normals (via Wikipedia climate table); period not stated,sourced
+Amman (east),238.5,JMD Amman Civil Airport (Marka) normals 1989-2018 (via Wikipedia climate table),sourced
+Zarqa,182,Climate-Data.org model estimate for Zarqa town; no JMD normal found,estimate
+Irbid,429.9,JMD Irbid normals 1985-2018 (via Wikipedia climate table),sourced
+Ajloun,467,Climate-Data.org model estimate for Ajloun town; no JMD normal found,estimate
+Jerash,393,Climate-Data.org model estimate for Jerash town; no JMD normal found,estimate
+Balqa (Salt),450,Midpoint of the 300-600 mm range reported for the Balqa highlands; no Salt station normal found,estimate
+Madaba,346,Climate-Data.org model estimate for Madaba town; no JMD normal found,estimate
+Mafraq,134.6,Mafraq station normals 1991-2020 (Starlings Roost Weather via Wikipedia),sourced
+Karak,323.7,JMD Karak (Rabba) normals 1989-2018 (via Wikipedia climate table),sourced
+Tafilah,318,FAO FAOCLIM agroclimatic station data for Tafilah (via Wikipedia),sourced
+Ma'an,46.8,Ma'an station normals 1991-2020 (Starlings Roost Weather via Wikipedia),sourced
+Aqaba,28.7,JMD Aqaba normals 1991-2020 (via Wikipedia climate table),sourced

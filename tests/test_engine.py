@@ -100,7 +100,7 @@ def test_quantity_limit():
 def test_banned_term_rejected(text):
     raw = good_plan(summary=text)
     bp, why = r.validate(raw, catalog, plants, "low")
-    assert bp is None and why.startswith("banned term")
+    assert bp is None and why.code == r.BANNED_TERM
 
 
 def test_required_items_added():

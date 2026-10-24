@@ -3,6 +3,8 @@
 Code owns every number, price and safety rule. The model only picks catalog IDs and writes text.
 """
 import json
+import re
+import unicodedata
 import urllib.request
 from pathlib import Path
 from typing import Literal, NamedTuple
@@ -286,31 +288,118 @@ DISCLAIMER = {
     "ar": "هذه إرشادات عامة وليست تصميماً معتمداً للسباكة ولا استشارة قانونية. استعن بسبّاك مرخّص وتحقق من الأنظمة المحلية قبل التنفيذ.",
 }
 # Model text containing any of these is rejected; the safety guidance comes only from WARNINGS above.
-BANNED_TERMS = ["bleach", "chlorine", "drinking", "drink", "potable", "toilet water", "kitchen water",
-                "sewage", "كلور", "مبيض", "للشرب", "شرب", "مياه المرحاض", "مياه المطبخ"]
+# Matching is on normalised text (see normalise) and by substring, not whole word: Arabic attaches
+# prefixes and suffixes (للشرب, يشرب) and English compounds (undrinkable), so a word-boundary match
+# would let real mentions through. A false rejection only costs a retry (PRD §6).
+BANNED_TERMS = ["bleach", "chlorine", "chemical", "drinking", "drink", "potable", "toilet", "kitchen",
+                "dishwasher", "blackwater", "black water", "sewage",
+                "كلور", "مبيض", "كيميا", "للشرب", "شرب", "مرحاض", "مراحيض", "تواليت", "مطبخ", "مجلى",
+                "جلاية", "مياه سوداء", "مياه السوداء", "مياه الصرف الصحي"]
+# Phrases removed before matching so a rain tank may still feed toilet cisterns (PRD §8).
+ALLOWED_PHRASES = ["toilet cistern", "toilet tank", "toilet flushing", "flushing toilet", "flush toilet",
+                   "flush the toilet", "طرد المرحاض", "طرد المراحيض"]
 REQUIRED_ITEMS = ["first_flush", "label_kit"]
 
+# Rejection codes, one per rule, so logs and tests can tell them apart.
+EMPTY_RESPONSE = "empty_response"
+NOT_JSON = "not_json"
+SCHEMA = "schema"
+BAD_QUANTITY = "bad_quantity"
+WRONG_LANGUAGE = "wrong_language"
+UNKNOWN_ITEM = "unknown_item"
+ITEM_OVER_BUDGET = "item_over_budget"
+BOM_OVER_BUDGET = "bom_over_budget"
+UNKNOWN_PLANT = "unknown_plant"
+PLANT_NOT_GREYWATER_SAFE = "plant_not_greywater_safe"
+BANNED_TERM = "banned_term"
 
-def validate(raw, catalog, plants, budget):
-    """Parse and check model output. Returns (Blueprint, None) or (None, reason)."""
+
+class Rejection(NamedTuple):
+    code: str
+    detail: str = ""
+
+    def __str__(self):
+        return f"{self.code}: {self.detail}" if self.detail else self.code
+
+
+_FOLD = str.maketrans({"ٱ": "ا", "ة": "ه", "ى": "ي", "\u0640": None})  # wasla, ta marbuta, alef maksura, tatweel
+
+
+def normalise(text):
+    """Lower-case, strip diacritics, tashkeel, tatweel and invisible characters, unify alef/ta/ya forms,
+    and turn punctuation and line breaks into single spaces."""
+    text = unicodedata.normalize("NFKD", text)  # أ إ آ ؤ ئ split into base letter + mark
+    text = "".join(ch for ch in text if unicodedata.category(ch) not in ("Mn", "Me", "Cf"))
+    text = unicodedata.normalize("NFKC", text).casefold().translate(_FOLD)
+    return " ".join(re.sub(r"[\W_]+", " ", text).split())
+
+
+def find_banned(text):
+    """First banned term in text, or None."""
+    t = f" {normalise(text)} "
+    for phrase in ALLOWED_PHRASES:
+        t = t.replace(normalise(phrase), " ")
+    return next((term for term in BANNED_TERMS if normalise(term) in t), None)
+
+
+_THINK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+_FENCE = re.compile(r"^```[a-zA-Z]*\s*\n?(.*?)\n?```$", re.DOTALL)
+
+
+def clean_model_text(raw):
+    """Drop <think>…</think> blocks (qwen3, deepseek) and one surrounding code fence."""
+    text = _THINK.sub("", raw).strip()
+    m = _FENCE.match(text)
+    return m.group(1).strip() if m else text
+
+
+def budget_cap(a, budget):
+    """Optional JOD cap on the whole bill of materials, from assumptions.csv row budget_cap_<budget>_jod."""
+    return a.get(f"budget_cap_{budget}_jod")
+
+
+def validate(raw, catalog, plants, budget, lang=None, max_total_jod=None):
+    """Parse and check model output. Returns (Blueprint, None) or (None, Rejection)."""
+    if isinstance(raw, (str, bytes)):
+        text = clean_model_text(raw.decode("utf-8", "replace") if isinstance(raw, bytes) else raw)
+        if not text:
+            return None, Rejection(EMPTY_RESPONSE)
+        try:
+            raw = json.loads(text)
+        except json.JSONDecodeError as e:
+            return None, Rejection(NOT_JSON, e.msg)
     try:
-        bp = Blueprint.model_validate_json(raw) if isinstance(raw, str) else Blueprint.model_validate(raw)
+        bp = Blueprint.model_validate(raw)
     except ValidationError as e:
-        return None, f"schema: {e.errors()[0]['msg']}"
+        errs = e.errors()
+        q = next((err for err in errs if "quantity" in err["loc"]), None)
+        if q:
+            return None, Rejection(BAD_QUANTITY, q["msg"])
+        return None, Rejection(SCHEMA, f"{'.'.join(map(str, errs[0]['loc']))}: {errs[0]['msg']}")
+    if lang and bp.language != lang:
+        return None, Rejection(WRONG_LANGUAGE, bp.language)
+    known_items = set(catalog["item_id"])
     ok_items = set(allowed_items(catalog, budget)["item_id"])
     for m in bp.materials:
+        if m.item_id not in known_items:
+            return None, Rejection(UNKNOWN_ITEM, m.item_id)
         if m.item_id not in ok_items:
-            return None, f"unknown or out-of-budget item: {m.item_id}"
+            return None, Rejection(ITEM_OVER_BUDGET, m.item_id)
+    known_plants = set(plants["plant_id"])
     ok_plants = set(plants.loc[plants["greywater_ok"], "plant_id"])
     for p in bp.plants:
+        if p.plant_id not in known_plants:
+            return None, Rejection(UNKNOWN_PLANT, p.plant_id)
         if p.plant_id not in ok_plants:
-            return None, f"plant not allowed for greywater: {p.plant_id}"
-    text = " ".join([bp.summary, *bp.greywater_steps, *bp.rainwater_steps,
-                     *(m.reason for m in bp.materials), *(p.reason for p in bp.plants)]).lower()
-    for term in BANNED_TERMS:
-        if term in text:
-            return None, f"banned term: {term}"
-    return enforce_required(bp), None
+            return None, Rejection(PLANT_NOT_GREYWATER_SAFE, p.plant_id)
+    text = " \n ".join([bp.summary, *bp.greywater_steps, *bp.rainwater_steps,
+                        *(m.reason for m in bp.materials), *(p.reason for p in bp.plants)])
+    if term := find_banned(text):
+        return None, Rejection(BANNED_TERM, term)
+    bp = enforce_required(bp)
+    if max_total_jod is not None and (total := plan_cost(price(bp, catalog))) > max_total_jod:
+        return None, Rejection(BOM_OVER_BUDGET, f"{total:.0f} > {max_total_jod:.0f} JOD")
+    return bp, None
 
 
 def enforce_required(bp):
@@ -335,14 +424,23 @@ def safety_checks(bp):
     ]
 
 
+BOM_COLUMNS = ["item", "qty", "unit", "unit_jod", "total_jod", "why"]
+
+
 def price(bp, catalog):
+    """Bill of materials priced from catalog.csv, in the plan's language."""
     cat = catalog.set_index("item_id")
     name_col = "name_ar" if bp.language == "ar" else "name_en"
     rows = [{"item": cat.at[m.item_id, name_col], "qty": m.quantity, "unit": cat.at[m.item_id, "unit"],
              "unit_jod": float(cat.at[m.item_id, "price_jod"]),
              "total_jod": m.quantity * float(cat.at[m.item_id, "price_jod"]), "why": m.reason}
             for m in bp.materials]
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=BOM_COLUMNS)
+
+
+def plan_cost(bom):
+    """Total JOD of a priced bill of materials."""
+    return float(bom["total_jod"].sum())
 
 
 # ---------------------------------------------------------------- template fallback

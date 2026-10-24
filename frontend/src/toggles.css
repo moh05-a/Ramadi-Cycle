@@ -1,0 +1,42 @@
+/* Theme and language buttons: round outline buttons in the water look. Motion is CSS only and stops when the visitor
+   asks for reduced motion. Colours come from tokens, with a cream variant over the home hero. */
+
+.tg {
+  --tg-fg: var(--rc-ink); --tg-line: var(--rc-rule); --tg-bg: var(--rc-paper); --tg-hover: var(--rc-surface);
+  position: relative; flex: none; width: 44px; height: 44px; padding: 0; margin: 0;
+  display: inline-grid; place-items: center; cursor: pointer; border-radius: 50%;
+  color: var(--tg-fg); background: var(--tg-bg); border: 1px solid var(--tg-line);
+  transition: background-color 200ms ease, border-color 200ms ease, transform 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.tg:hover { background: var(--tg-hover); border-color: var(--rc-stone); }
+.tg:active { transform: scale(0.94); }
+.tg:focus-visible { outline: 2px solid var(--rc-cistern); outline-offset: 3px; }
+
+/* sun / moon: each path draws itself (pathLength=1) and scales from the centre of the icon */
+.tg svg { overflow: visible; }
+.tg svg path {
+  stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none;
+  stroke-dasharray: 1; transform-box: view-box; transform-origin: 12.4px 12.7px;
+  transition: stroke-dashoffset 700ms ease, transform 700ms ease;
+}
+.tg__sun path { stroke-dashoffset: 0; transform: scale(1); }
+.tg__moon { stroke-dashoffset: 1; transform: scale(0); }
+.tg.is-dark .tg__sun path { stroke-dashoffset: 1; transform: scale(0); }
+.tg.is-dark .tg__moon { stroke-dashoffset: 0; transform: scale(1); }
+
+/* language: the label you will switch to is shown; the other slides away */
+.tg--lang { overflow: hidden; font-weight: 600; }
+.tg__label { grid-area: 1 / 1; line-height: 1; transition: transform 350ms cubic-bezier(0.3, 0.7, 0.2, 1), opacity 250ms ease; }
+.tg__label--en { font-size: 0.8125rem; letter-spacing: 0.02em; }
+.tg__label--ar { font-family: var(--rc-font-arabic); font-size: 1.125rem; transform: translateY(140%); opacity: 0; }
+.tg--lang:not(.is-ar) .tg__label--en { transform: translateY(-140%); opacity: 0; }
+.tg--lang:not(.is-ar) .tg__label--ar { transform: none; opacity: 1; }
+
+/* over the dark home hero (the light hero is cream, so the normal colours apply) */
+:root[data-theme="dark"] .sh--over-hero .tg { --tg-fg: #ece9d8; --tg-line: rgba(236, 233, 216, 0.4); --tg-bg: rgba(236, 233, 216, 0.08); --tg-hover: rgba(236, 233, 216, 0.16); }
+:root[data-theme="dark"] .sh--over-hero .tg:focus-visible { outline-color: #ece9d8; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tg, .tg svg path, .tg__label { transition: none; }
+}

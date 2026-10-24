@@ -1,0 +1,129 @@
+/* "Deep water" look for the whole app, matching the home hero. Loaded last; overrides colour tokens and shapes at the
+   app level, so the brand kit itself is untouched. Light theme: cream paper with deep-water ink. Dark theme: deep water
+   with cream text. Every text pair passes WCAG AA (checked: lowest 4.82:1, rust on the light surface). */
+
+:root, :root[data-theme="light"] {
+  --rc-bg: #ECE9D8; --rc-surface: #E2DFCB; --rc-paper: #F6F4EA;
+  --rc-ink: #0C2731; --rc-stone: #485A61; --rc-rule: #D3CEB6;
+  --rc-cistern: #0F3A4B; --rc-cistern-hover: #0C2731; --rc-on-cistern: #ECE9D8;
+  --rc-olive: #4E6128; --rc-olive-tint: #DDE0C6; --rc-rust: #9E421C; --rc-rust-tint: #F0DECF; --rc-bought: #CFC9B0;
+  --wt-glow-a: rgba(15, 58, 75, 0.10); --wt-glow-b: rgba(78, 97, 40, 0.08); --wt-grain: 0.10;
+  --wt-radius: 28px; --wt-radius-sm: 16px;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --rc-bg: #0C2731; --rc-surface: #103545; --rc-paper: #133D4E;
+  --rc-ink: #ECE9D8; --rc-stone: #A9B7B5; --rc-rule: #24505F;
+  --rc-cistern: #ECE9D8; --rc-cistern-hover: #FFFFFF; --rc-on-cistern: #0C2731;
+  --rc-olive: #B3C982; --rc-olive-tint: #1D3A2E; --rc-rust: #EE9A72; --rc-rust-tint: #3A2A22; --rc-bought: #2E5666;
+  --wt-glow-a: rgba(120, 200, 225, 0.14); --wt-glow-b: rgba(80, 160, 140, 0.10); --wt-grain: 0.30;
+  color-scheme: dark;
+}
+
+/* ---- page: soft glow and grain behind everything ---- */
+body { background: var(--rc-bg); }
+.sh { position: relative; isolation: isolate; background:
+  radial-gradient(60% 40% at 85% 0%, var(--wt-glow-a), transparent 70%),
+  radial-gradient(50% 40% at 0% 60%, var(--wt-glow-b), transparent 70%), var(--rc-bg); }
+.sh::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: var(--wt-grain); mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---- top bar: frosted on every page ---- */
+.sh-bar { background: color-mix(in srgb, var(--rc-bg) 82%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-block-end-color: transparent; }
+
+/* ---- panels ---- */
+.app-panel { border-radius: var(--wt-radius); overflow: hidden; border-color: var(--rc-rule); background: var(--rc-paper); }
+.app-panel__head { padding: 26px 30px; }
+.app-panel__head h2 { font-size: 1.625rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
+.app-panel__head.is-dark { background: radial-gradient(120% 140% at 85% 0%, #1d5f78, #0f3a4b 50%, #0c2731); color: #ECE9D8; }
+.app-panel__head.is-dark span { color: rgba(236, 233, 216, 0.75); opacity: 1; }
+.app-panel__foot { background: var(--rc-surface); }
+.app-card { border-radius: var(--wt-radius); }
+
+/* big numbers: tight like the hero word */
+.app-headline__value { font-weight: 600; letter-spacing: -0.045em; font-size: clamp(3.5rem, 7vw, 5.5rem); }
+.app-secondary__value { letter-spacing: -0.03em; }
+.app-secondary__cell { border-inline-end-color: var(--rc-rule); }
+
+/* ---- buttons: pills; the "next" link is the hero button with its arrow in a circle ---- */
+.rc-btn, .app-linkbtn { border-radius: 999px; }
+.sh-foot { border-block-start-color: var(--rc-rule); padding: 18px 24px; }
+.sh-foot .app-linkbtn, .app-linkbtn.rc-btn--primary {
+  gap: 12px; padding-block: 5px; padding-inline: 24px 5px; min-height: 58px;
+  background: var(--rc-cistern); color: var(--rc-on-cistern); border-color: var(--rc-cistern); transition: gap 160ms ease-out;
+}
+.sh-foot .app-linkbtn:hover { gap: 16px; background: var(--rc-cistern-hover); }
+.sh-foot .app-linkbtn .sh-arrow {
+  width: 46px; height: 46px; padding: 13px; flex: none; border-radius: 50%;
+  background: var(--rc-on-cistern); color: var(--rc-cistern); transition: transform 160ms ease-out;
+}
+.sh-foot .app-linkbtn:hover .sh-arrow { transform: scale(1.08); }
+.app-actions .rc-btn { min-height: 52px; }
+
+/* ---- fields ---- */
+.app-input, .app-field select, .gd-wishes textarea { border-radius: var(--wt-radius-sm); border-color: var(--rc-rule); background: var(--rc-bg); }
+.app-input:focus-within, .app-field select:focus-visible, .gd-wishes textarea:focus-visible { outline-color: var(--rc-cistern); }
+.app-input__unit { border-inline-start-color: var(--rc-rule); background: var(--rc-surface); border-start-end-radius: var(--wt-radius-sm); border-end-end-radius: var(--wt-radius-sm); }
+[dir="rtl"] .app-input__unit { border-radius: var(--wt-radius-sm) 0 0 var(--wt-radius-sm); }
+.app-choice__opt, .app-budget__opt { border-radius: 18px; border-color: var(--rc-rule); background: var(--rc-bg); }
+.app-choice__opt:has(input:checked), .app-budget__opt:has(input:checked) { border-color: var(--rc-cistern); background: var(--rc-paper); }
+
+/* ---- tabs: a pill switch instead of underlines ---- */
+.rc-tabs__list { border-block-end: 0; gap: 4px; padding: 5px; background: var(--rc-surface); border-radius: 999px; width: fit-content; max-width: 100%; }
+.rc-tabs__list [role="tab"] { border: 0; margin: 0; border-radius: 999px; padding-inline: 20px; color: var(--rc-stone); font-weight: 600; }
+.rc-tabs__list [role="tab"][aria-selected="true"] { background: var(--rc-cistern); color: var(--rc-on-cistern); }
+
+/* ---- smaller pieces ---- */
+.rc-notice { border-radius: var(--wt-radius-sm); border-color: var(--rc-rule); background: var(--rc-surface); }
+.rc-badge { border-radius: 999px; }
+.rc-table-wrap { border-radius: var(--wt-radius-sm); }
+.app-steps li::before { border-radius: 50%; }
+.app-safety, .gd-rules { background: var(--rc-surface); }
+.gd-plant, .gd-pick, .app-chart { border-radius: 20px; }
+.gd-chart { border-radius: var(--wt-radius-sm); }
+.app-pill, .gd-tag { border-radius: 999px; }
+
+/* ---- audit fixes ---- */
+/* section titles between cards (e.g. "Through the year") match the panel headings */
+.sh-section-title { font-size: 1.375rem; font-weight: 600; letter-spacing: -0.02em; padding-inline: 4px; }
+/* charts scale with the panel; cap the height so their 11px labels never balloon on wide screens */
+.app-chart .rc-chart { max-height: 280px; }
+/* plan / garden prompt: one clear action row */
+.app-prompt { display: grid; gap: var(--rc-space-4); }
+.app-prompt__actions { display: flex; flex-wrap: wrap; gap: var(--rc-space-3); align-items: center; }
+.app-prompt__actions .rc-btn { min-height: 54px; font-size: var(--rc-text-base); padding-inline: 26px; }
+.app-ai { display: grid; gap: var(--rc-space-3); }
+.app-ai .rc-notice { max-width: none; }
+.app-ai__more > summary, .app-checks__more > summary {
+  cursor: pointer; font-weight: 600; min-height: 44px; display: inline-flex; align-items: center; gap: 8px; color: var(--rc-cistern);
+}
+.app-ai__more[open] > summary { margin-block-end: var(--rc-space-3); }
+.app-ai__controls { display: grid; gap: var(--rc-space-3); }
+.app-checks__more ul { margin-block-start: var(--rc-space-2); }
+
+/* Latin display type is tight; Arabic letters join, so never letter-space them */
+[dir="rtl"] .app-panel__head h2, [dir="rtl"] .app-headline__value, [dir="rtl"] .app-secondary__value { letter-spacing: 0; }
+
+@media (max-width: 640px) {
+  .app-panel { border-radius: 22px; }
+  .app-panel__head { padding: 22px 18px; }
+  /* savings: one figure per row, value and unit on one line, no orphaned cell */
+  .app-secondary { grid-template-columns: minmax(0, 1fr); }
+  .app-secondary__cell { border-inline-end: 0; border-block-end: 1px solid var(--rc-rule); padding: 16px 18px; }
+  .app-secondary__cell:last-child { border-block-end: 0; }
+  .app-secondary__row { flex-wrap: nowrap; }
+  /* tabs share the row instead of running off the edge */
+  .rc-tabs__list { width: 100%; }
+  .rc-tabs__list [role="tab"] { flex: 1 1 0; min-width: 0; padding-inline: 8px; font-size: 0.9375rem; }
+  .app-prompt__actions .rc-btn { width: 100%; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sh-foot .app-linkbtn, .sh-foot .app-linkbtn .sh-arrow { transition: none; }
+}
+@media print {
+  .sh::before { display: none; }
+  .sh { background: #fff; }
+  .app-panel { border-radius: 0; }
+}

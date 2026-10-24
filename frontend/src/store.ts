@@ -64,7 +64,8 @@ export function useRamadi() {
         setOptions(o);
         // a stored governorate may have been removed from rainfall.csv
         setGov((g) => (o.governorates.some((x) => x.name === g) ? g : o.governorates[0].name));
-        setModel((m) => m || o.models[0] || "");
+        // privacy: preselect a local model only; a cloud model must be picked on purpose
+        setModel((m) => m || o.models.find((x) => !x.startsWith("openrouter:")) || "");
         setError("");
       })
       .catch((e: Error) => setError(e.message));
@@ -89,9 +90,12 @@ export function useRamadi() {
     return () => { clearTimeout(timer); ctl.abort(); };
   }, [reqKey, attempt]); // reqKey captures every input that changes the request
 
-  // An AI plan belongs to the inputs it was written for. Drop it (and stop a running request) when they change.
+  // A plan belongs to the inputs it was made for, and is only shown after the user asks for it.
+  // Drop it (and stop a running request) when the inputs change.
+  const [requested, setRequested] = useState<string>();
   useEffect(() => {
-    if (generated && generated.key !== planKey) { setGenerated(undefined); setStale(true); }
+    const had = (generated && generated.key !== planKey) || (requested !== undefined && requested !== planKey);
+    if (had) { setGenerated(undefined); setRequested(undefined); setStale(true); }
     if (generating) { genCtl.current?.abort(); setGenerating(false); }
   }, [planKey]);
 
@@ -108,7 +112,9 @@ export function useRamadi() {
       .finally(() => { if (genCtl.current === ctl) setGenerating(false); });
   };
 
-  const shown: PlanBlock | undefined = generated?.key === planKey ? generated.res : data;
+  const makeStandard = () => { setGenerated(undefined); setRequested(planKey); setStale(false); };
+  const shown: PlanBlock | undefined =
+    generated?.key === planKey ? generated.res : planKey && requested === planKey ? data : undefined;
 
   return {
     lang, setLang, options, error, retry: () => setAttempt((n) => n + 1), planKey, request,
@@ -119,7 +125,7 @@ export function useRamadi() {
       model, setModel, generating, stale, isAI: !!shown && shown !== data,
       write: writeWithAI,
       cancel: () => { genCtl.current?.abort(); setGenerating(false); },
-      reset: () => setGenerated(undefined),
+      reset: makeStandard, standard: makeStandard,
     },
   };
 }

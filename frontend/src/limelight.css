@@ -1,0 +1,51 @@
+/* Limelight top-bar nav. Colours are tokens: deep water light in light mode, cream light in dark mode.
+   Phones keep the dropdown menu (five icon + label items don't fit in 390px). */
+
+.lime {
+  --lime-c: var(--rc-cistern);
+  list-style: none; margin: 0; position: relative; display: flex; align-items: stretch;
+  height: 58px; padding: 0 6px; border-radius: 20px;
+  background: var(--rc-paper); border: 1px solid var(--rc-rule);
+}
+.lime li { display: flex; }
+.lime__item {
+  position: relative; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 0 16px;
+  text-decoration: none; font-size: 0.9375rem; font-weight: 600; white-space: nowrap;
+  border-radius: 14px;
+}
+/* inactive items use the secondary text colour, not opacity, so they keep AA contrast (5.9:1 and up) */
+.lime__item { color: var(--rc-stone); transition: color 150ms ease-in-out; }
+.lime__icon { display: grid; }
+.lime__item:hover, .lime__item[aria-current="page"] { color: var(--rc-ink); }
+.lime__item:focus-visible { outline: 2px solid var(--lime-c); outline-offset: -6px; }
+
+/* the light: a bar on the top edge, a soft cone below it, and a faint glow on the item */
+.lime__light-wrap { position: absolute; inset: 0; pointer-events: none; display: block; }
+.lime__light {
+  position: absolute; top: -1px; left: -999px; z-index: 1; width: 44px; height: 4px; border-radius: 999px;
+  background: var(--lime-c); box-shadow: 0 0 12px 1px color-mix(in srgb, var(--lime-c) 45%, transparent);
+  opacity: 0; transition: opacity 200ms ease;
+}
+.lime__light::after {
+  content: ""; position: absolute; left: -40%; top: 4px; width: 180%; height: 46px; pointer-events: none;
+  clip-path: polygon(8% 100%, 26% 0, 74% 0, 92% 100%);
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--lime-c) 26%, transparent), transparent);
+}
+.lime.is-ready .lime__light { transition: left 400ms ease-in-out, opacity 200ms ease; }
+
+/* over the dark home hero: frosted bar, cream items and light */
+:root[data-theme="dark"] .sh--over-hero .lime {
+  --lime-c: #ece9d8; background: rgba(236, 233, 216, 0.08); border-color: rgba(236, 233, 216, 0.2);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+:root[data-theme="dark"] .sh--over-hero .lime__item { color: rgba(236, 233, 216, 0.78); }
+:root[data-theme="dark"] .sh--over-hero .lime__item:hover,
+:root[data-theme="dark"] .sh--over-hero .lime__item[aria-current="page"] { color: #ece9d8; }
+
+/* medium screens: drop the labels' padding before anything wraps */
+@media (max-width: 1100px) { .lime__item { padding: 0 11px; gap: 6px; font-size: 0.875rem; } }
+@media (max-width: 760px) { .lime { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .lime__item, .lime.is-ready .lime__light { transition: none; }
+}
+@media print { .lime { display: none; } }

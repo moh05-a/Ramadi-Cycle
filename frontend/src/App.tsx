@@ -1,10 +1,12 @@
 // v5 design: four pages (home, savings, build plan, how we calculated). All numbers and plan text come from the API.
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { Button, Notice, Tabs, num } from "@brand";
 import { COPY } from "./copy";
 import { Assumptions, Method, detailLines } from "./calc";
-import { AIBox, Charts, Community, GovField, LinkButton, NumberField, SafetyChecks, Sareef, Steps, Warnings } from "./components";
+import { AIBox, PlanPrompt, Charts, Community, GovField, LinkButton, NumberField, SafetyChecks, Sareef, Steps, Warnings } from "./components";
 import { GardenPage } from "./garden";
+import { Hero, useOverHero } from "./hero";
+import { Wizard, isStep } from "./wizard";
 import { ArrowIcon, DownloadIcon, PrintIcon } from "./icons";
 import { TopBar } from "./topbar";
 import { useRoute, type Route } from "./router";
@@ -21,6 +23,8 @@ export function App() {
   const route = useRoute();
   const { theme, toggle } = useTheme();
   const page = PAGE_OF[route];
+  const landing = route === ""; // the hero alone; "Check my home" goes to the form at #/home
+  const overHero = useOverHero(landing);
   const t = COPY[s.lang];
   const sh = SHELL[s.lang];
 
@@ -30,22 +34,15 @@ export function App() {
   const unreachable = /failed to fetch|networkerror|load failed/i.test(s.error);
 
   return (
-    <div className="rc-root sh" dir={s.lang === "ar" ? "rtl" : "ltr"} lang={s.lang}>
+    <div className={`rc-root sh${landing ? " sh--landing" : ""}${overHero ? " sh--over-hero" : ""}`} dir={s.lang === "ar" ? "rtl" : "ltr"} lang={s.lang}>
       <a className="sh-skip" href="#main">{sh.skip}</a>
 
-      <TopBar lang={s.lang} setLang={s.setLang} theme={theme} toggleTheme={toggle} page={page} />
+      <TopBar lang={s.lang} setLang={s.setLang} theme={theme} toggleTheme={toggle}
+        active={landing ? "start" : isStep(page) ? "planner" : "calc"} />
 
       <main id="main">
-        {page === "home" ? (
-          <section className="sh-hero">
-            <div className="sh-wrap">
-              <h1 tabIndex={-1}>{sh.title}</h1>
-              <p>{sh.intro}</p>
-            </div>
-          </section>
-        ) : (
-          <h1 className="sh-sr" tabIndex={-1}>{sh.nav[page]}</h1>
-        )}
+        {landing ? <Hero lang={s.lang} /> : <>
+        <h1 className="sh-sr" tabIndex={-1}>{sh.nav[page]}</h1>
 
         <div className="sh-col">
           {s.error && (
@@ -58,25 +55,24 @@ export function App() {
             </div>
           )}
 
-          {page === "home" && <HomePage s={s} />}
-          {page !== "home" && (s.data && s.shown && s.options
-            ? <Results page={page} s={s} />
-            : !s.error && <p className="app-loading" aria-live="polite">{t.loading}</p>)}
+          {(() => {
+            const body = page === "home" ? <HomePage s={s} />
+              : s.data && s.options ? <Results page={page} s={s} />
+              : !s.error && <p className="app-loading" aria-live="polite">{t.loading}</p>;
+            return isStep(page) ? <Wizard step={page} lang={s.lang}>{body}</Wizard> : body;
+          })()}
 
           {page !== "home" && s.data && <p className="app-disclaimer">{s.data.disclaimer}</p>}
         </div>
+        </>}
       </main>
     </div>
   );
 }
 
-function Next({ to, children }: { to: Route; children: ReactNode }) {
-  return <div className="sh-foot noprint"><LinkButton to={to}>{children}<ArrowIcon /></LinkButton></div>;
-}
 
 function HomePage({ s }: { s: Store }) {
   const t = COPY[s.lang];
-  const sh = SHELL[s.lang];
   const o = s.options;
   return (
     <section className="app-panel" aria-labelledby="h-home">
@@ -112,7 +108,6 @@ function HomePage({ s }: { s: Store }) {
           ))}
         </fieldset>
       </div>
-      <Next to="garden">{sh.goGarden}</Next>
     </section>
   );
 }
@@ -126,9 +121,8 @@ function Results({ page, s }: { page: Page; s: Store }) {
 
 function SavePage({ s }: { s: Store }) {
   const t = COPY[s.lang];
-  const sh = SHELL[s.lang];
   const { profile, result: res } = s.data!;
-  const imp = s.shown!.impact;
+  const imp = s.data!.impact; // plan-independent: payback uses the standard parts list
   const payback = imp.payback_months;
   const cells = [
     { key: "trips", value: num(imp.trips, 1), unit: t.results.trips[1], label: t.results.trips[0], cls: "" },
@@ -160,7 +154,6 @@ function SavePage({ s }: { s: Store }) {
         ))}
       </div>
       <div className="app-panel__foot">{t.estimateNote(t.years[s.year])}</div>
-      <Next to="plan">{sh.goPlan}</Next>
     </section>
   );
 }
@@ -169,7 +162,8 @@ function PlanPage({ s }: { s: Store }) {
   const t = COPY[s.lang];
   const sh = SHELL[s.lang];
   const [tab, setTab] = useState("steps");
-  const shown = s.shown!;
+  if (!s.shown) return <PlanPrompt s={s} />;
+  const shown = s.shown;
   const { plan, markdown } = shown;
   const data = s.data!;
 
@@ -237,7 +231,7 @@ function PlanPage({ s }: { s: Store }) {
 
       <div className="app-safety">
         <h3 className="app-h3 app-safety__title">{t.safety}</h3>
-        <SafetyChecks plan={plan} lang={s.lang} />
+        <SafetyChecks plan={plan} lang={s.lang} collapsed />
         <div className="sh-warnings"><Warnings items={data.warnings} /></div>
       </div>
 
@@ -252,7 +246,7 @@ function PlanPage({ s }: { s: Store }) {
 function CalcPage({ s }: { s: Store }) {
   const t = COPY[s.lang];
   const data = s.data!;
-  const lines = detailLines(data, s.shown!.impact.co2, s.lang);
+  const lines = detailLines(data, data.impact.co2, s.lang);
   return (
     <>
       <section className="app-panel" aria-labelledby="h-calc">
@@ -261,7 +255,7 @@ function CalcPage({ s }: { s: Store }) {
       </section>
 
       <section className="sh-stack" aria-labelledby="h-impact">
-        <h2 id="h-impact" className="app-h3">{t.impact}</h2>
+        <h2 id="h-impact" className="sh-section-title">{t.impact}</h2>
         <Charts data={data} lang={s.lang} />
         <Sareef data={data} lang={s.lang} />
         <Community s={s} />

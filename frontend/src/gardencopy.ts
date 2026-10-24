@@ -3,7 +3,7 @@ import type { Lang } from "@brand";
 
 type GardenCopy = {
   title: string;
-  waterLine: (summer: string, month: string) => string;
+  waterLine: (litres: string, from: string, to: string) => string;
   area: string; areaHint: string; range: (lo: string, hi: string) => string;
   wishes: string; wishesHint: string; wishesPlaceholder: string;
   aiTitle: string; aiIntro: string; model: string; design: string; cancel: string;
@@ -25,7 +25,9 @@ type GardenCopy = {
 export const GARDEN: Record<Lang, GardenCopy> = {
   en: {
     title: "What your water can grow",
-    waterLine: (summer, month) => `In ${month}, the driest month for your garden, your shower, sink and laundry water gives about ${summer} litres a week. That decides what can grow.`,
+    waterLine: (l, from, to) => from === to
+      ? `In ${from} your garden gets no rain, only your shower, sink and laundry water: about ${l} litres a week. That decides what can grow.`
+      : `From ${from} to ${to} your garden gets no rain, only your shower, sink and laundry water: about ${l} litres a week. That decides what can grow.`,
     area: "Garden size", areaHint: "The ground you can plant, in square metres.", range: (lo, hi) => `Use a number from ${lo} to ${hi}.`,
     wishes: "What do you want from your garden?", wishesHint: "In your own words, English or Arabic.",
     wishesPlaceholder: "Shade by the wall, fruit for the kids, something green all year",
@@ -58,7 +60,9 @@ export const GARDEN: Record<Lang, GardenCopy> = {
   },
   ar: {
     title: "ماذا يمكن أن تزرع بمياهك",
-    waterLine: (summer, month) => `في ${month}، أكثر الأشهر جفافاً لحديقتك، تعطيك مياه الدوش والمغسلة والغسالة نحو ${summer} لتر أسبوعياً. هذا ما يحدد ماذا يمكن أن ينمو.`,
+    waterLine: (l, from, to) => from === to
+      ? `في ${from} لا يصل حديقتك مطر، بل مياه الدوش والمغسلة والغسالة فقط: نحو ${l} لتر أسبوعياً. هذا ما يحدد ماذا يمكن أن ينمو.`
+      : `من ${from} إلى ${to} لا يصل حديقتك مطر، بل مياه الدوش والمغسلة والغسالة فقط: نحو ${l} لتر أسبوعياً. هذا ما يحدد ماذا يمكن أن ينمو.`,
     area: "مساحة الحديقة", areaHint: "الأرض التي يمكنك زراعتها، بالمتر المربع.", range: (lo, hi) => `اكتب رقماً من ${lo} إلى ${hi}.`,
     wishes: "ماذا تريد من حديقتك؟", wishesHint: "بكلماتك، بالعربية أو الإنجليزية.",
     wishesPlaceholder: "ظل عند السور، فواكه للأولاد، شيء أخضر طوال السنة",

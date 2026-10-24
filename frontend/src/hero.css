@@ -1,0 +1,141 @@
+/* Home hero. Follows the theme so it flows into the pages after it: deep water with cream text in dark mode,
+   pale water fading to cream with deep-water text in light mode. Motion is CSS only and stops under
+   prefers-reduced-motion. */
+
+.hero { padding: 12px; padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px)); }
+.hero__frame {
+  /* dark (default) */
+  --h-bg: radial-gradient(120% 90% at 80% 10%, #1d5f78 0%, #0f3a4b 45%, #0c2731 100%);
+  --h-fg: #ece9d8; --h-fg-dim: rgba(236, 233, 216, 0.78); --h-line: rgba(236, 233, 216, 0.35);
+  --h-btn-bg: #ece9d8; --h-btn-hover: #ffffff; --h-btn-fg: #0c2731; --h-dot-bg: #0c2731; --h-dot-fg: #ece9d8;
+  --h-glow-a: rgba(120, 200, 225, 0.22); --h-glow-b: rgba(80, 160, 140, 0.14);
+  --h-shade: linear-gradient(to bottom, rgba(0, 0, 0, 0.25), transparent 40%, rgba(0, 0, 0, 0.55));
+  --h-grain: 0.35; --h-drop-far: 0.55; --h-drop-near: 0.8;
+  --h-drop-far-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='180'%3E%3Cg stroke='%23cfe6ef' stroke-opacity='.35' stroke-width='1' stroke-linecap='round'%3E%3Cpath d='M12 10v14M58 70v12M95 130v13M33 118v11M78 22v12M20 160v10'/%3E%3C/g%3E%3C/svg%3E");
+  --h-drop-near-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='260'%3E%3Cg stroke='%23e6f2f6' stroke-opacity='.45' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M30 20v26M120 110v22M80 190v24M150 40v20M10 150v22'/%3E%3C/g%3E%3C/svg%3E");
+
+  position: relative; overflow: hidden; isolation: isolate;
+  min-height: clamp(520px, calc(100svh - 96px), 920px);
+  border-radius: 28px;
+  background: var(--h-bg);
+  color: var(--h-fg);
+  display: flex; align-items: flex-end;
+}
+/* light: pale water at the top fading into the cream of the pages that follow */
+:root[data-theme="light"] .hero__frame {
+  --h-bg: radial-gradient(120% 90% at 80% 10%, #c9dfe3 0%, #dfe5da 45%, #ece9d8 100%);
+  --h-fg: #0c2731; --h-fg-dim: #3f545b; --h-line: rgba(12, 39, 49, 0.28);
+  --h-btn-bg: #0f3a4b; --h-btn-hover: #0c2731; --h-btn-fg: #ece9d8; --h-dot-bg: #ece9d8; --h-dot-fg: #0f3a4b;
+  --h-glow-a: rgba(29, 95, 120, 0.14); --h-glow-b: rgba(78, 97, 40, 0.08);
+  --h-shade: linear-gradient(to bottom, transparent 55%, rgba(236, 233, 216, 0.55));
+  --h-grain: 0.12; --h-drop-far: 0.6; --h-drop-near: 0.75;
+  --h-drop-far-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='110' height='180'%3E%3Cg stroke='%230f3a4b' stroke-opacity='.18' stroke-width='1' stroke-linecap='round'%3E%3Cpath d='M12 10v14M58 70v12M95 130v13M33 118v11M78 22v12M20 160v10'/%3E%3C/g%3E%3C/svg%3E");
+  --h-drop-near-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='260'%3E%3Cg stroke='%230f3a4b' stroke-opacity='.24' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M30 20v26M120 110v22M80 190v24M150 40v20M10 150v22'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* rain: two layers of short drops on seamless tiles, moved with transforms (GPU), plus a slow drifting glow */
+.hero__video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -3; }
+.hero__rain { position: absolute; inset: -15% -10%; z-index: -3; transform: rotate(10deg); pointer-events: none; }
+.hero__drops {
+  position: absolute; inset: calc(-1 * var(--tile)) 0 0 0; display: block;
+  background-repeat: repeat; background-size: var(--tile-w) var(--tile);
+  animation: hero-fall var(--speed) linear infinite; will-change: transform;
+}
+.hero__drops--far { --tile: 180px; --tile-w: 110px; --speed: 2.6s; opacity: var(--h-drop-far); background-image: var(--h-drop-far-img); }
+.hero__drops--near { --tile: 260px; --tile-w: 170px; --speed: 1.5s; opacity: var(--h-drop-near); background-image: var(--h-drop-near-img); }
+@keyframes hero-fall { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, var(--tile), 0); } }
+
+.hero__glow {
+  position: absolute; inset: -20%; z-index: -3; pointer-events: none; will-change: transform;
+  background:
+    radial-gradient(35% 30% at 75% 20%, var(--h-glow-a), transparent 70%),
+    radial-gradient(40% 35% at 20% 70%, var(--h-glow-b), transparent 70%);
+  animation: hero-drift 22s ease-in-out infinite alternate;
+}
+@keyframes hero-drift { to { transform: translate3d(-6%, 4%, 0) scale(1.08); } }
+
+/* film grain, drawn inline so nothing is fetched */
+.hero__grain {
+  position: absolute; inset: 0; z-index: -2; opacity: var(--h-grain); mix-blend-mode: overlay; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.hero__shade { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--h-shade); }
+
+.hero__content {
+  width: 100%; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); align-items: end; gap: 16px;
+  padding: 0 clamp(16px, 3vw, 40px) clamp(8px, 1.5vw, 16px);
+}
+.hero__word {
+  grid-column: span 8; margin: 0; color: var(--h-fg);
+  font-weight: 500; line-height: 0.85; letter-spacing: -0.07em;
+  font-size: clamp(5.5rem, 19vw, 19rem);
+  display: flex; flex-wrap: wrap; gap: 0 0.25em;
+}
+.hero__word:focus { outline: none; }
+.hero__word:focus-visible { outline: 2px solid var(--h-fg); outline-offset: 6px; }
+/* Arabic letters join; letter-spacing breaks them, and the script needs more line height */
+[dir="rtl"] .hero__word, .hero__word:lang(ar) { letter-spacing: 0; line-height: 1.15; font-size: clamp(5rem, 17vw, 16rem); }
+
+.hero__side { grid-column: span 4; display: grid; gap: 18px; justify-items: start; padding-block-end: clamp(24px, 3vw, 40px); }
+.hero__tag {
+  margin: 0; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 4px 10px; border: 1px solid var(--h-line); border-radius: 999px; color: var(--h-fg-dim);
+}
+[dir="rtl"] .hero__tag { letter-spacing: 0; text-transform: none; }
+.hero__lead { margin: 0; font-size: clamp(1.25rem, 1.7vw, 1.625rem); font-weight: 600; line-height: 1.2; text-wrap: balance; }
+.hero__intro { margin: 0; font-size: clamp(0.9375rem, 1.1vw, 1.0625rem); line-height: 1.45; color: var(--h-fg-dim); max-width: 42ch; text-wrap: pretty; }
+
+.hero__cta {
+  text-decoration: none;
+  font: inherit; font-weight: 600; font-size: 1rem; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 10px; min-height: 52px;
+  padding-block: 5px; padding-inline: 22px 5px; border: 0; border-radius: 999px;
+  background: var(--h-btn-bg); color: var(--h-btn-fg);
+  transition: gap 160ms ease-out, background-color 160ms ease-out;
+}
+.hero__cta:hover { gap: 14px; background: var(--h-btn-hover); }
+.hero__cta:focus-visible { outline: 2px solid var(--h-fg); outline-offset: 3px; }
+.hero__cta-dot {
+  display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%;
+  background: var(--h-dot-bg); color: var(--h-dot-fg); transition: transform 160ms ease-out;
+}
+.hero__cta:hover .hero__cta-dot { transform: scale(1.08); }
+
+/* entrance: words and side items rise in; they start visible if motion is reduced */
+.hero-word, .rise { display: inline-block; animation: hero-rise 600ms cubic-bezier(0.16, 1, 0.3, 1) var(--d, 0ms) both; }
+.rise { display: block; }
+.hero__cta.rise { display: inline-flex; }
+@keyframes hero-rise { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+@media (max-width: 1023px) {
+  .hero__word, .hero__side { grid-column: 1 / -1; }
+  .hero__side { padding-block-end: 24px; }
+}
+@media (max-width: 640px) {
+  .hero__frame { border-radius: 18px; min-height: clamp(480px, calc(100svh - 84px), 760px); }
+  .hero__word { font-size: 26vw; }
+  [dir="rtl"] .hero__word { font-size: 24vw; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero__drops, .hero__glow { animation: none; }
+  .hero-word, .rise { animation: none; }
+  .hero__cta, .hero__cta-dot { transition: none; }
+}
+@media print { .hero { display: none; } }
+
+/* ---- landing page: the hero alone fills the screen under a transparent top bar ---- */
+.sh--landing .hero { padding: 0; margin-block-start: calc(-1 * var(--bar-h, 80px)); }
+.sh--landing .hero__frame { border-radius: 0; min-height: 0; height: 100svh; }  /* exactly one screen: nothing below to clash with */
+.sh-brand { color: inherit; text-decoration: none; border-radius: 999px; }
+.sh-brand:focus-visible { outline: 2px solid var(--rc-cistern); outline-offset: 4px; }
+
+.sh-bar { transition: background-color 250ms ease, border-color 250ms ease; }
+.sh--over-hero .sh-bar { background: transparent; border-block-end-color: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
+
+/* over the dark hero only: cream logo, frosted menu and cream text. In light mode the bar keeps its normal colours,
+   because the light hero is already cream underneath. */
+:root[data-theme="dark"] .sh--over-hero .sh-brand:focus-visible { outline-color: #ece9d8; }
+:root[data-theme="dark"] .sh--over-hero .sh-brand__main { color: #ece9d8; }
+:root[data-theme="dark"] .sh--over-hero .sh-brand__sub { color: rgba(236, 233, 216, 0.72); }
+:root[data-theme="dark"] .sh--over-hero .sh-mobile__btn { background: rgba(236, 233, 216, 0.12); color: #ece9d8; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+@media (prefers-reduced-motion: reduce) { .sh-bar { transition: none; } }

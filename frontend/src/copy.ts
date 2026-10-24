@@ -33,7 +33,9 @@ type Copy = {
   method: string; who: string; whoRows: [string, string][]; rules: string; banned: string; allowed: string;
   retries: (n: number, lo: number, hi: number) => string; formulas: string; formulaLines: string[];
   schema: string; modelHeading: string; modelLine: (m: string, url: string) => string; modelNone: string; prompt: string;
-  cloudNote: string; cloudLine: (m: string) => string; cloudTag: string; paybackNote: (c: string) => string;
+  cloudNote: string;
+  chooseModel: string; planPrompt: string; makePlan: string; makeStandard: string; noModelsShort: string;
+  aiAgain: string; whatChecked: string; cloudLine: (m: string) => string; cloudTag: string; paybackNote: (c: string) => string;
   // assumptions
   data: string; dataIntro: (v: number, n: number) => string; tables: Record<TableKey, string>;
   columns: Record<string, string>; govNames: Record<string, string>;
@@ -80,7 +82,7 @@ export const COPY: Record<Lang, Copy> = {
     },
     range: (lo, hi) => `Enter a number from ${lo} to ${hi}. Using the nearest one.`,
     line: (g, mm, r, p) => `${g}: about ${mm} mm of rain a year · ${r} m² roof · ${p} people`,
-    estimateNote: (y) => `Estimates for a ${y.toLowerCase()} rain year. Drinking and cooking water are not included.`,
+    estimateNote: (y) => `Estimates for ${/^[aeiou]/i.test(y) ? "an" : "a"} ${y.toLowerCase()} rain year. Drinking and cooking water are not included.`,
     detailLines: (v) => [
       `Rain used: ${v.rainUsed} m³ · greywater: ${v.grey} m³`,
       `CO₂ cut: ${v.co2} kg a year`,
@@ -99,9 +101,9 @@ export const COPY: Record<Lang, Copy> = {
     model: "Model", aiButton: "Write my plan", aiCancel: "Cancel", aiWorking: (m) => `Writing your plan with ${m}. This can take a few minutes on a laptop.`,
     noModels: "No model found, so you're seeing the built-in plan. To use AI, install Ollama and run: ollama pull qwen3:4b",
     byModel: (m) => `Written on this laptop by ${m}. Prices and safety checks come from code, not the model.`,
-    byTemplate: "Built-in plan for your budget.",
+    byTemplate: "Standard plan for your budget.",
     fallback: (m) => `${m} couldn't write a plan that passed the checks, so this is the built-in plan.`,
-    useTemplate: "Back to the built-in plan", stale: "You changed your home details, so the AI plan was cleared.",
+    useTemplate: "Use the standard plan instead", stale: "You changed your home details, so the plan was cleared. Make a new one for the new details.",
     failDetails: "What went wrong",
     checksLabel: "Safety checks passed", of: "of",
     checkRules: {},
@@ -115,6 +117,11 @@ export const COPY: Record<Lang, Copy> = {
     formulas: "Formulas", formulaLines: FORMULAS, schema: "Answer format the model must follow",
     modelHeading: "Model", modelLine: (m, url) => `${m} through Ollama at ${url}. Nothing leaves this laptop.`,
     cloudNote: "This is a cloud model. Your home's numbers and the instructions are sent to OpenRouter. Pick a local model to keep everything on this laptop.",
+    chooseModel: "Choose a model…",
+    planPrompt: "Your plan lists the build steps, the parts to buy with prices, and the trees your greywater can feed. Make it when you're ready.",
+    makePlan: "Make my plan", makeStandard: "Use the standard plan",
+    noModelsShort: "No AI model is running, so this makes the standard plan for your budget. To use AI, install Ollama and run: ollama pull qwen3:4b",
+    aiAgain: "Rewrite the plan with AI", whatChecked: "What we checked",
     cloudLine: (m) => `${m} on OpenRouter. Your home's numbers and the instructions leave this laptop.`, cloudTag: "cloud",
     paybackNote: (c) => `Payback uses the standard parts list (${c} JOD), so it doesn't change with the AI's choices.`,
     modelNone: "No model running. Built-in plan only.", prompt: "Instructions sent to the model",
@@ -172,9 +179,9 @@ export const COPY: Record<Lang, Copy> = {
     model: "النموذج", aiButton: "اكتب خطتي", aiCancel: "إلغاء", aiWorking: (m) => `جارٍ كتابة خطتك بواسطة ${m}. قد يستغرق ذلك بضع دقائق على جهاز محمول.`,
     noModels: "لم يُعثر على نموذج محلي، لذا تظهر الخطة الجاهزة. لاستخدام الذكاء الاصطناعي ثبّت Ollama ثم شغّل: ollama pull qwen3:4b",
     byModel: (m) => `كتبها ${m} على هذا الجهاز. الأسعار وفحوص السلامة من الكود وليست من النموذج.`,
-    byTemplate: "الخطة الجاهزة لميزانيتك.",
+    byTemplate: "الخطة القياسية لميزانيتك.",
     fallback: (m) => `لم يستطع ${m} كتابة خطة تجتاز الفحوص، لذا تظهر الخطة الجاهزة.`,
-    useTemplate: "ارجع إلى الخطة الجاهزة", stale: "غيّرت معلومات البيت، فحُذفت خطة الذكاء الاصطناعي.",
+    useTemplate: "استخدم الخطة القياسية بدلاً منها", stale: "غيّرت معلومات البيت، فحُذفت الخطة. أنشئ خطة جديدة للمعلومات الجديدة.",
     failDetails: "ما الذي حدث",
     checksLabel: "اجتازت الخطة فحوص السلامة", of: "من",
     checkRules: {
@@ -195,6 +202,11 @@ export const COPY: Record<Lang, Copy> = {
     formulas: "المعادلات", formulaLines: FORMULAS, schema: "صيغة الإجابة التي يلتزم بها النموذج",
     modelHeading: "النموذج", modelLine: (m, url) => `${m} عبر Ollama على ${url}. لا يغادر أي شيء هذا الجهاز.`,
     cloudNote: "هذا نموذج سحابي. تُرسل أرقام بيتك والتعليمات إلى OpenRouter. اختر نموذجاً محلياً ليبقى كل شيء على هذا الجهاز.",
+    chooseModel: "اختر نموذجاً…",
+    planPrompt: "تضم خطتك خطوات التنفيذ، والمواد التي تشتريها بأسعارها، والأشجار التي تكفيها مياهك الرمادية. أنشئها عندما تكون جاهزاً.",
+    makePlan: "أنشئ خطتي", makeStandard: "استخدم الخطة القياسية",
+    noModelsShort: "لا يعمل أي نموذج ذكاء اصطناعي، لذا سيُنشئ هذا الزر الخطة القياسية لميزانيتك. لاستخدام الذكاء الاصطناعي ثبّت Ollama ثم شغّل: ollama pull qwen3:4b",
+    aiAgain: "أعد كتابة الخطة بالذكاء الاصطناعي", whatChecked: "ما الذي فحصناه",
     cloudLine: (m) => `${m} على OpenRouter. تغادر أرقام بيتك والتعليمات هذا الجهاز.`, cloudTag: "سحابي",
     paybackNote: (c) => `مدة الاسترداد محسوبة على قائمة المواد القياسية (${c} دينار)، فلا تتغير باختيارات الذكاء الاصطناعي.`,
     modelNone: "لا يوجد نموذج مشغّل. الخطة الجاهزة فقط.", prompt: "التعليمات المرسلة إلى النموذج",

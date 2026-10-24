@@ -1,0 +1,53 @@
+/* Multi-step planner. Tokens only, so both themes and RTL work; the bar and slides follow reading direction. */
+
+.wz { display: grid; gap: var(--rc-space-6); }
+.wz-body > * + * { margin-block-start: var(--rc-space-8); }
+
+/* progress: dots with labels over a thin bar */
+.wz-progress { display: grid; gap: 10px; }
+.wz-progress ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.wz-progress li { display: flex; justify-content: center; }
+.wz-progress li:first-child { justify-content: flex-start; }
+.wz-progress li:last-child { justify-content: flex-end; }
+.wz-progress a, .wz-locked {
+  display: grid; justify-items: center; gap: 8px; min-height: 44px; padding: 2px 6px; border-radius: 12px;
+  text-decoration: none; color: var(--rc-stone); font-size: 0.875rem; font-weight: 600;
+}
+.wz-progress li:first-child :is(a, .wz-locked) { justify-items: start; }
+.wz-progress li:last-child :is(a, .wz-locked) { justify-items: end; }
+.wz-progress a:hover { color: var(--rc-ink); }
+.wz-progress a:focus-visible { outline: 2px solid var(--rc-cistern); outline-offset: 2px; }
+.wz-locked { cursor: default; opacity: 0.7; }
+.wz-dot {
+  width: 16px; height: 16px; border-radius: 50%; background: var(--rc-surface); border: 2px solid var(--rc-rule);
+  transition: background-color 300ms ease, box-shadow 300ms ease, border-color 300ms ease;
+}
+.is-done .wz-dot { background: var(--rc-cistern); border-color: var(--rc-cistern); }
+.is-current .wz-dot { background: var(--rc-cistern); border-color: var(--rc-cistern); box-shadow: 0 0 0 5px color-mix(in srgb, var(--rc-cistern) 22%, transparent); }
+.is-current :is(a, .wz-locked) { color: var(--rc-ink); }
+.wz-bar { block-size: 6px; border-radius: 999px; background: var(--rc-surface); overflow: hidden; }
+.wz-bar span { display: block; block-size: 100%; background: var(--rc-cistern); border-radius: inherit; transition: inline-size 300ms ease; }
+
+/* step content slides in from the side the user is moving towards (mirrored in RTL) */
+.wz-body.is-fwd { animation: wz-in-fwd 300ms ease-out both; }
+.wz-body.is-back { animation: wz-in-back 300ms ease-out both; }
+@keyframes wz-in-fwd { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: none; } }
+@keyframes wz-in-back { from { opacity: 0; transform: translateX(-40px); } to { opacity: 1; transform: none; } }
+[dir="rtl"] .wz-body.is-fwd { animation-name: wz-in-back; }
+[dir="rtl"] .wz-body.is-back { animation-name: wz-in-fwd; }
+
+/* Back / Next */
+.wz-foot { display: flex; justify-content: space-between; align-items: center; gap: var(--rc-space-3); }
+.wz-foot .rc-btn { display: inline-flex; align-items: center; gap: 10px; min-height: 54px; padding-inline: 24px; text-decoration: none; font-weight: 600; font-size: var(--rc-text-base); }
+.wz-back .sh-arrow { transform: scaleX(-1); }          /* back points against reading direction */
+[dir="rtl"] .wz-back .sh-arrow { transform: none; }
+.wz-count { text-align: center; color: var(--rc-stone); font-size: 0.9375rem; }
+
+@media (max-width: 640px) {
+  .wz-label { display: none; }           /* the "Step 2 of 4: Your garden" line names the step on phones */
+  .wz-foot .rc-btn { padding-inline: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wz-body.is-fwd, .wz-body.is-back { animation: none; }
+  .wz-dot, .wz-bar span { transition: none; }
+}

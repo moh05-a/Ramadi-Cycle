@@ -3,13 +3,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Button, Notice, SafetyBadge, months, num, type Lang } from "@brand";
 import { getGarden, type GardenResponse } from "./api";
-import { LinkButton, NumberField, Warnings } from "./components";
+import { ModelSelect, NumberField, Warnings } from "./components";
 import { GARDEN } from "./gardencopy";
-import { ArrowIcon } from "./icons";
 import { useStored, type Store } from "./store";
-import { SHELL } from "./v5copy";
 
-const isCloud = (m: string) => m.startsWith("openrouter:");
 
 function useGarden(s: Store) {
   const [areaRaw, setArea] = useStored("rc.garden.m2", "40");
@@ -68,21 +65,20 @@ function useGarden(s: Store) {
 
 export function GardenPage({ s }: { s: Store }) {
   const t = GARDEN[s.lang];
-  const sh = SHELL[s.lang];
   const g = useGarden(s);
   const wishesId = useId();
-  const modelId = useId();
   const models = s.options!.models;
   const shown = g.shown;
   const ai = s.ai;
 
-  const summer = shown ? driest(shown.supply_l_week) : null;
+  const dry = shown ? dryMonths(shown.supply_l_week) : null;
+  const monthName = (i: number) => (s.lang === "ar" ? months.ar[i] : MONTHS_EN[i]);
 
   return (
     <section className="app-panel" aria-labelledby="h-garden">
       <div className="app-panel__head">
         <h2 id="h-garden">{t.title}</h2>
-        {summer && <p>{t.waterLine(num(summer.value), months[s.lang][summer.month])}</p>}
+        {dry && <p>{t.waterLine(num(dry.value), monthName(dry.from), monthName(dry.to))}</p>}
       </div>
 
       <div className="app-panel__body gd-form">
@@ -100,18 +96,15 @@ export function GardenPage({ s }: { s: Store }) {
         <div className="app-ai__head"><b>{t.aiTitle}</b><span>{t.aiIntro}</span></div>
         {models.length === 0 ? <Notice>{t.noModels}</Notice> : (
           <div className="app-ai__controls">
-            <div className="app-field">
-              <label htmlFor={modelId}>{t.model}</label>
-              <select id={modelId} value={ai.model} onChange={(e) => ai.setModel(e.target.value)} disabled={g.working} dir="ltr">
-                {models.map((m) => <option key={m} value={m}>{isCloud(m) ? `${m.slice(11)} (${t.cloudTag})` : m}</option>)}
-              </select>
+            {/* shared picker: never preselects a cloud model, and warns when one is chosen */}
+            <ModelSelect value={ai.model} onChange={ai.setModel} models={models} lang={s.lang} disabled={g.working} />
+            <div className="app-prompt__actions">
+              {g.working
+                ? <Button variant="secondary" onClick={g.cancel}>{t.cancel}</Button>
+                : <Button onClick={g.design} disabled={!ai.model}>{t.design}</Button>}
             </div>
-            {g.working
-              ? <Button variant="secondary" onClick={g.cancel}>{t.cancel}</Button>
-              : <Button onClick={g.design} disabled={!ai.model}>{t.design}</Button>}
           </div>
         )}
-        {isCloud(ai.model) && models.length > 0 && <Notice>{t.cloudNote}</Notice>}
         {g.working ? <p className="app-ai__status" role="status">{t.working(ai.model)}</p>
           : g.isAI && shown?.plan ? <p className="app-ai__status is-ok">{t.byModel(shown.model)}</p>
           : g.isAI && shown?.notice ? <Notice>{shown.notice}</Notice>
@@ -139,7 +132,6 @@ export function GardenPage({ s }: { s: Store }) {
         </div>
       )}
 
-      <div className="sh-foot noprint"><LinkButton to="save">{sh.goSave}<ArrowIcon /></LinkButton></div>
     </section>
   );
 }
@@ -165,9 +157,14 @@ function Site({ g, lang }: { g: GardenResponse; lang: Lang }) {
   );
 }
 
-function driest(supply: number[]) {
-  const month = supply.reduce((best, v, i) => (v < supply[best] ? i : best), 0);
-  return { month, value: supply[month] };
+const MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+  "November", "December"];
+
+/** The run of months with the least water (no rain, greywater only): many months tie, so report first to last. */
+function dryMonths(supply: number[]) {
+  const min = Math.min(...supply);
+  const dry = supply.map((v, i) => (v <= min * 1.01 ? i : -1)).filter((i) => i >= 0);
+  return { from: dry[0], to: dry[dry.length - 1], value: min };
 }
 
 /** The model's garden: verdict, summary and plant cards. Only rendered for a plan that passed every check. */

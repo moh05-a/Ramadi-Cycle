@@ -1,24 +1,31 @@
-// One sticky top bar: logo, pill nav, theme switch, language switch. On phones the pill becomes a dropdown menu.
+// One sticky top bar: logo, limelight nav, theme and language buttons. On phones the nav becomes a dropdown menu.
 import { useEffect, useRef, useState } from "react";
 import type { Lang } from "@brand";
-import { DropLogo } from "./icons";
+import { DropLogo, NavCalcIcon, NavHomeIcon, NavPlanIcon } from "./icons";
+import { LimelightNav } from "./limelight";
+import { LangToggle, ThemeToggle } from "./toggles";
 import { href, type Route } from "./router";
 import type { Theme } from "./theme";
-import { PAGES_ORDER, SHELL, type Page } from "./v5copy";
+import { SHELL } from "./v5copy";
 
-const ROUTE_OF: Record<Page, Route> = { home: "home", garden: "garden", save: "save", plan: "plan", calc: "calc" };
-const RAY_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+// Three destinations: the start page, the planner (the multi-step form) and how the numbers are worked out.
+export type TopKey = "start" | "planner" | "calc";
+const TOP: { key: TopKey; route: Route; icon: JSX.Element }[] = [
+  { key: "start", route: "", icon: <NavHomeIcon /> },
+  { key: "planner", route: "home", icon: <NavPlanIcon /> },
+  { key: "calc", route: "calc", icon: <NavCalcIcon /> },
+];
 
-type Props = { lang: Lang; setLang: (l: Lang) => void; theme: Theme; toggleTheme: () => void; page: Page };
+type Props = { lang: Lang; setLang: (l: Lang) => void; theme: Theme; toggleTheme: () => void; active: TopKey };
 
-export function TopBar({ lang, setLang, theme, toggleTheme, page }: Props) {
+export function TopBar({ lang, setLang, theme, toggleTheme, active }: Props) {
   const sh = SHELL[lang];
   const [open, setOpen] = useState(false);
   const menuId = "sh-menu";
   const button = useRef<HTMLButtonElement>(null);
 
   // close the menu when the page changes, and on Escape (returning focus to the button)
-  useEffect(() => setOpen(false), [page]);
+  useEffect(() => setOpen(false), [active]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setOpen(false); button.current?.focus(); } };
@@ -26,10 +33,10 @@ export function TopBar({ lang, setLang, theme, toggleTheme, page }: Props) {
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
-  const links = (cls: string) => PAGES_ORDER.map((p) => (
-    <li key={p}>
-      <a className={cls} href={href(ROUTE_OF[p])} aria-current={p === page ? "page" : undefined} onClick={() => setOpen(false)}>
-        <span>{sh.nav[p]}</span>
+  const links = (cls: string) => TOP.map((t) => (
+    <li key={t.key}>
+      <a className={cls} href={href(t.route)} aria-current={t.key === active ? "page" : undefined} onClick={() => setOpen(false)}>
+        <span>{sh.top[t.key]}</span>
       </a>
     </li>
   ));
@@ -38,20 +45,21 @@ export function TopBar({ lang, setLang, theme, toggleTheme, page }: Props) {
     <header className="sh-bar">
       <div className="sh-bar__row">
         <div className="sh-bar__side">
-          <div className="sh-brand">
+          <a className="sh-brand" href={href("")} aria-label={`${sh.brand}, ${sh.brand2}: ${sh.homeLink}`}>
             <DropLogo />
-            <span className="sh-brand__main">{sh.brand}</span>
-            <span className="sh-brand__sub" lang={lang === "ar" ? "en" : "ar"}>{sh.brand2}</span>
-          </div>
+            <span className="sh-brand__main" aria-hidden="true">{sh.brand}</span>
+            <span className="sh-brand__sub" lang={lang === "ar" ? "en" : "ar"} aria-hidden="true">{sh.brand2}</span>
+          </a>
         </div>
 
         <nav className="sh-navwrap noprint" aria-label={sh.navLabel}>
-          <ul className="sh-pill">{links("sh-pill__item")}</ul>
+          <LimelightNav active={active}
+            items={TOP.map((t) => ({ key: t.key, href: href(t.route), label: sh.top[t.key], icon: t.icon }))} />
 
           <div className="sh-mobile">
             <button ref={button} type="button" className="sh-mobile__btn" aria-expanded={open} aria-controls={menuId}
-              aria-label={`${sh.navMenu}: ${sh.nav[page]}`} onClick={() => setOpen(!open)}>
-              <span>{sh.nav[page]}</span>
+              aria-label={`${sh.navMenu}: ${sh.top[active]}`} onClick={() => setOpen(!open)}>
+              <span>{sh.top[active]}</span>
               <span className="sh-burger" aria-hidden="true"><i /><i /></span>
             </button>
             <ul id={menuId} className="sh-mobile__menu" hidden={!open}>{links("sh-mobile__item")}</ul>
@@ -59,21 +67,8 @@ export function TopBar({ lang, setLang, theme, toggleTheme, page }: Props) {
         </nav>
 
         <div className="sh-bar__side sh-bar__side--end noprint">
-          <button type="button" role="switch" className="sh-sw sh-sw--theme" aria-checked={theme === "dark"} aria-label={sh.darkMode} onClick={toggleTheme}>
-            <span className="sh-sw__track" />
-            <span className="sh-sw__knob" />
-            <span className="sh-sun" aria-hidden="true">
-              <span className="sh-sun__disc" />
-              {RAY_ANGLES.map((a) => <span key={a} className="sh-ray" style={{ "--a": `${a}deg` } as React.CSSProperties} />)}
-            </span>
-          </button>
-          <button type="button" role="switch" className="sh-sw sh-sw--lang" aria-checked={lang === "ar"} aria-label={sh.langLabel} lang="ar"
-            onClick={() => setLang(lang === "ar" ? "en" : "ar")}>
-            <span className="sh-sw__track" />
-            <span className="sh-sw__end sh-sw__end--en" aria-hidden="true">EN</span>
-            <span className="sh-sw__end sh-sw__end--ar" aria-hidden="true">ع</span>
-            <span className="sh-sw__knob sh-sw__knob--lang" aria-hidden="true">{lang === "ar" ? "ع" : "EN"}</span>
-          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} label={sh.darkMode} />
+          <LangToggle lang={lang} onToggle={() => setLang(lang === "ar" ? "en" : "ar")} label={sh.langLabel} />
         </div>
       </div>
     </header>

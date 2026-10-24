@@ -25,3 +25,18 @@ export const PrintIcon = () => (
 export const DownloadIcon = () => (
   <svg {...base}><path d="M10 2v11M5 8l5 5 5-5M3 18h14" fill="none" stroke="currentColor" strokeWidth="2" /></svg>
 );
+
+/* Navigation icons, 24px grid, stroke only (currentColor), for the limelight top bar. */
+const nav = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2,
+  strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": true } as const;
+export const NavHomeIcon = () => <svg {...nav}><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z" /></svg>;
+export const NavGardenIcon = () => (
+  <svg {...nav}><path d="M12 21v-9" /><path d="M12 13C12 8.6 9 6 4 6c0 4.4 3 7 8 7z" /><path d="M12 11c0-3.9 2.5-6 7-6 0 3.9-2.5 6-7 6z" /></svg>
+);
+export const NavSaveIcon = () => <svg {...nav}><circle cx="9" cy="9" r="6" /><path d="M15.7 10.4a6 6 0 1 1-5.3 5.3" /></svg>;
+export const NavPlanIcon = () => (
+  <svg {...nav}><rect x="5" y="4" width="14" height="17" rx="2" /><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3" /></svg>
+);
+export const NavCalcIcon = () => (
+  <svg {...nav}><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" /></svg>
+);

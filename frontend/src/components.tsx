@@ -177,9 +177,64 @@ export function Community({ s }: { s: Store }) {
   );
 }
 
-export function AIBox({ ai, plan, models, lang }: { ai: AI; plan: PlanBlock["plan"]; models: string[]; lang: Lang }) {
+/** Model picker shared by the plan and garden pages. With no local model, nothing is preselected (privacy). */
+export function ModelSelect({ value, onChange, models, lang, disabled = false }: {
+  value: string; onChange: (m: string) => void; models: string[]; lang: Lang; disabled?: boolean;
+}) {
   const t = COPY[lang];
   const id = useId();
+  return (
+    <>
+      <div className="app-field">
+        <label htmlFor={id}>{t.model}</label>
+        <select id={id} value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} dir="ltr">
+          {!value && <option value="" disabled>{t.chooseModel}</option>}
+          {models.map((m) => <option key={m} value={m}>{isCloud(m) ? `${m.slice(11)} (${t.cloudTag})` : m}</option>)}
+        </select>
+      </div>
+      {isCloud(value) && <Notice>{t.cloudNote}</Notice>}
+    </>
+  );
+}
+
+/** Before the user asks: say what the plan holds and offer the one action that makes it. */
+export function PlanPrompt({ s }: { s: Store }) {
+  const t = COPY[s.lang];
+  const ai = s.ai;
+  const models = s.options!.models;
+  return (
+    <section className="app-panel" aria-labelledby="h-plan">
+      <div className="app-panel__head">
+        <h2 id="h-plan">{t.step3}</h2>
+        <p>{t.planPrompt}</p>
+      </div>
+      <div className="app-panel__body app-prompt noprint">
+        {ai.stale && <Notice>{t.stale}</Notice>}
+        {models.length > 0 && <ModelSelect value={ai.model} onChange={ai.setModel} models={models} lang={s.lang} disabled={ai.generating} />}
+        <div className="app-prompt__actions">
+          {ai.generating ? (
+            <>
+              <p className="app-ai__status" role="status">{t.aiWorking(ai.model)}</p>
+              <Button variant="secondary" onClick={ai.cancel}>{t.aiCancel}</Button>
+            </>
+          ) : models.length > 0 ? (
+            <>
+              <Button onClick={ai.write} disabled={!ai.model}>{t.aiButton}</Button>
+              <Button variant="secondary" onClick={ai.standard}>{t.makeStandard}</Button>
+            </>
+          ) : (
+            <Button onClick={ai.standard}>{t.makePlan}</Button>
+          )}
+        </div>
+        {models.length === 0 && <p className="app-note">{t.noModelsShort}</p>}
+      </div>
+    </section>
+  );
+}
+
+/** After a plan is shown: where it came from, and a way to rewrite it with AI or go back to the standard plan. */
+export function AIBox({ ai, plan, models, lang }: { ai: AI; plan: PlanBlock["plan"]; models: string[]; lang: Lang }) {
+  const t = COPY[lang];
   let status: ReactNode;
   if (ai.isAI && plan.source === "model") status = <p className="app-ai__status is-ok">{t.byModel(ai.model)}</p>;
   else if (ai.isAI) status = (
@@ -190,48 +245,46 @@ export function AIBox({ ai, plan, models, lang }: { ai: AI; plan: PlanBlock["pla
       </details>
     </Notice>
   );
-  else status = <p className="app-ai__status">{ai.stale ? t.stale : t.byTemplate}</p>;
+  else status = <p className="app-ai__status">{t.byTemplate}</p>;
 
   return (
     <div className="app-ai noprint">
-      <div className="app-ai__head">
-        <b>{t.aiTitle}</b>
-        <span>{t.aiIntro}</span>
-      </div>
-      {models.length === 0 ? (
-        <Notice>{t.noModels}</Notice>
-      ) : (
-        <div className="app-ai__controls">
-          <div className="app-field">
-            <label htmlFor={id}>{t.model}</label>
-            <select id={id} value={ai.model} onChange={(e) => ai.setModel(e.target.value)} disabled={ai.generating} dir="ltr">
-              {models.map((m) => <option key={m} value={m}>{isCloud(m) ? `${m.slice(11)} (${t.cloudTag})` : m}</option>)}
-            </select>
-          </div>
-          {ai.generating
-            ? <Button variant="secondary" onClick={ai.cancel}>{t.aiCancel}</Button>
-            : <Button onClick={ai.write} disabled={!ai.model}>{t.aiButton}</Button>}
-          {ai.isAI && !ai.generating && <Button variant="secondary" onClick={ai.reset}>{t.useTemplate}</Button>}
-        </div>
-      )}
-      {isCloud(ai.model) && models.length > 0 && <Notice>{t.cloudNote}</Notice>}
       {ai.generating ? <p className="app-ai__status" role="status">{t.aiWorking(ai.model)}</p> : status}
+      {models.length > 0 && (
+        <details className="app-ai__more">
+          <summary>{ai.isAI ? t.aiAgain : t.aiTitle}</summary>
+          <div className="app-ai__controls">
+            <ModelSelect value={ai.model} onChange={ai.setModel} models={models} lang={lang} disabled={ai.generating} />
+            <div className="app-prompt__actions">
+              {ai.generating
+                ? <Button variant="secondary" onClick={ai.cancel}>{t.aiCancel}</Button>
+                : <Button onClick={ai.write} disabled={!ai.model}>{t.aiButton}</Button>}
+              {ai.isAI && !ai.generating && <Button variant="secondary" onClick={ai.reset}>{t.useTemplate}</Button>}
+            </div>
+          </div>
+        </details>
+      )}
     </div>
   );
 }
 
-export function SafetyChecks({ plan, lang }: { plan: PlanBlock["plan"]; lang: Lang }) {
+export function SafetyChecks({ plan, lang, collapsed = false }: { plan: PlanBlock["plan"]; lang: Lang; collapsed?: boolean }) {
   const t = COPY[lang];
+  const failed = plan.checks.some((c) => !c.passed);
+  const list = (
+    <ul>
+      {plan.checks.map((c) => (
+        <li key={c.rule} className={c.passed ? "is-pass" : "is-fail"}>
+          <span aria-hidden="true">{c.passed ? "✓" : "✕"}</span> {t.checkRules[c.rule] ?? c.rule}
+        </li>
+      ))}
+    </ul>
+  );
   return (
     <div className="app-checks">
       <SafetyBadge passed={plan.checks.filter((c) => c.passed).length} total={plan.checks.length} label={t.checksLabel} ofWord={t.of} />
-      <ul>
-        {plan.checks.map((c) => (
-          <li key={c.rule} className={c.passed ? "is-pass" : "is-fail"}>
-            <span aria-hidden="true">{c.passed ? "✓" : "✕"}</span> {t.checkRules[c.rule] ?? c.rule}
-          </li>
-        ))}
-      </ul>
+      {/* a failed check is always shown open; when all pass, the list is one click away */}
+      {collapsed && !failed ? <details className="app-checks__more"><summary>{t.whatChecked}</summary>{list}</details> : list}
     </div>
   );
 }

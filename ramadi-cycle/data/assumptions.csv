@@ -1,0 +1,19 @@
+parameter,value,unit,source,status
+runoff_coefficient,0.85,fraction,Project brief (concrete roof),unverified
+first_flush_loss,0.10,fraction,Placeholder,unknown
+year_multiplier_dry,0.7,factor,Placeholder,placeholder
+year_multiplier_average,1.0,factor,Placeholder,placeholder
+year_multiplier_wet,1.3,factor,Placeholder,placeholder
+nonpotable_litres_per_person_day,30,L,Placeholder (toilet flushing and floor cleaning),unknown
+tanker_share,0.5,fraction,Placeholder (share of saved water that would have come by tanker),unknown
+tanker_volume,5,m³,Placeholder,unknown
+tanker_price,25,JOD/trip,Project brief (20 to 30 JOD),unverified
+municipal_tariff,1.0,JOD/m³,Placeholder,unknown
+diesel_per_trip,4,L,Placeholder,unknown
+diesel_co2,2.68,kg CO2/L,Standard factor recalled from memory,unverified
+pump_energy,0.5,kWh/m³,Placeholder,unknown
+grid_co2,0.45,kg CO2/kWh,Placeholder,unknown
+greywater_recovery,0.8,fraction,Placeholder,unknown
+litres_per_shower,40,L,Placeholder,unknown
+litres_per_laundry_load,60,L,Placeholder,unknown
+sink_litres_per_person_week,20,L,Placeholder (bathroom sink only),unknown

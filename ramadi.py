@@ -324,8 +324,8 @@ DISCLAIMER = {
 # Matching is on normalised text (see normalise) and by substring, not whole word: Arabic attaches
 # prefixes and suffixes (للشرب, يشرب) and English compounds (undrinkable), so a word-boundary match
 # would let real mentions through. A false rejection only costs a retry (PRD §6).
-BANNED_TERMS = ["bleach", "chlorine", "chemical", "drinking", "drink", "potable", "toilet", "kitchen",
-                "dishwasher", "blackwater", "black water", "sewage",
+BANNED_TERMS = ["bleach", "chlorine", "chlorin", "clorox", "chemical", "drinking", "drink", "potable", "toilet",
+                "kitchen", "dishwasher", "blackwater", "black water", "sewage",
                 "كلور", "مبيض", "كيميا", "للشرب", "شرب", "مرحاض", "مراحيض", "تواليت", "مطبخ", "مجلى",
                 "جلاية", "مياه سوداء", "مياه السوداء", "مياه الصرف الصحي"]
 # Phrases removed before matching so a rain tank may still feed toilet cisterns (PRD §8).

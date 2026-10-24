@@ -33,6 +33,7 @@ type Copy = {
   method: string; who: string; whoRows: [string, string][]; rules: string; banned: string; allowed: string;
   retries: (n: number, lo: number, hi: number) => string; formulas: string; formulaLines: string[];
   schema: string; modelHeading: string; modelLine: (m: string, url: string) => string; modelNone: string; prompt: string;
+  cloudNote: string; cloudLine: (m: string) => string; cloudTag: string; paybackNote: (c: string) => string;
   // assumptions
   data: string; dataIntro: (v: number, n: number) => string; tables: Record<TableKey, string>;
   columns: Record<string, string>; govNames: Record<string, string>;
@@ -96,7 +97,7 @@ export const COPY: Record<Lang, Copy> = {
     communityLine: (h, w, t, c) => `${h} homes would reuse ${w} m³ of water, avoid ${t} tanker trips and cut ${c} tonnes of CO₂ a year.`,
     aiTitle: "Write the plan with AI", aiIntro: "A model running on this laptop picks parts from the catalogue and writes the steps. Code checks every answer before you see it.",
     model: "Model", aiButton: "Write my plan", aiCancel: "Cancel", aiWorking: (m) => `Writing your plan with ${m}. This can take a few minutes on a laptop.`,
-    noModels: "No local model found, so you're seeing the built-in plan. To use AI, install Ollama and run: ollama pull qwen3:4b",
+    noModels: "No model found, so you're seeing the built-in plan. To use AI, install Ollama and run: ollama pull qwen3:4b",
     byModel: (m) => `Written on this laptop by ${m}. Prices and safety checks come from code, not the model.`,
     byTemplate: "Built-in plan for your budget.",
     fallback: (m) => `${m} couldn't write a plan that passed the checks, so this is the built-in plan.`,
@@ -112,6 +113,9 @@ export const COPY: Record<Lang, Copy> = {
     retries: (n, lo, hi) => `Quantities must be ${lo} to ${hi}. After ${n} failed tries the built-in plan is used.`,
     formulas: "Formulas", formulaLines: FORMULAS, schema: "Answer format the model must follow",
     modelHeading: "Model", modelLine: (m, url) => `${m} through Ollama at ${url}. Nothing leaves this laptop.`,
+    cloudNote: "This is a cloud model. Your home's numbers and the instructions are sent to OpenRouter. Pick a local model to keep everything on this laptop.",
+    cloudLine: (m) => `${m} on OpenRouter. Your home's numbers and the instructions leave this laptop.`, cloudTag: "cloud",
+    paybackNote: (c) => `Payback uses the standard parts list (${c} JOD), so it doesn't change with the AI's choices.`,
     modelNone: "No model running. Built-in plan only.", prompt: "Instructions sent to the model",
     data: "Assumptions and sources",
     dataIntro: (v, n) => `Every number the calculator uses, with its source. ${v} of ${n} have a published source so far. Fix one with a pull request to data/.`,
@@ -188,6 +192,9 @@ export const COPY: Record<Lang, Copy> = {
     retries: (n, lo, hi) => `يجب أن تكون الكميات بين ${lo} و${hi}. بعد ${n} محاولات فاشلة تُستخدم الخطة الجاهزة.`,
     formulas: "المعادلات", formulaLines: FORMULAS, schema: "صيغة الإجابة التي يلتزم بها النموذج",
     modelHeading: "النموذج", modelLine: (m, url) => `${m} عبر Ollama على ${url}. لا يغادر أي شيء هذا الجهاز.`,
+    cloudNote: "هذا نموذج سحابي. تُرسل أرقام بيتك والتعليمات إلى OpenRouter. اختر نموذجاً محلياً ليبقى كل شيء على هذا الجهاز.",
+    cloudLine: (m) => `${m} على OpenRouter. تغادر أرقام بيتك والتعليمات هذا الجهاز.`, cloudTag: "سحابي",
+    paybackNote: (c) => `مدة الاسترداد محسوبة على قائمة المواد القياسية (${c} دينار)، فلا تتغير باختيارات الذكاء الاصطناعي.`,
     modelNone: "لا يوجد نموذج مشغّل. الخطة الجاهزة فقط.", prompt: "التعليمات المرسلة إلى النموذج",
     data: "الافتراضات والمصادر",
     dataIntro: (v, n) => `كل رقم تستخدمه الحاسبة مع مصدره. لـ ${v} من ${n} مصدر منشور حتى الآن. صحّح أي رقم بطلب دمج إلى data/.`,

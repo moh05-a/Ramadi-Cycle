@@ -50,6 +50,7 @@ export type Plan = {
 export type PlanBlock = {
   plan: Plan;
   impact: Impact;
+  payback_cost: number; // standard parts list for the budget; payback never uses the model's picks
   payback: string;
   community: { homes: number; water: number; trips: number; co2_t: number };
   markdown: string;

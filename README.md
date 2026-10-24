@@ -31,6 +31,18 @@ python api.py                         # terminal 1: API on 127.0.0.1:8000
 cd frontend && npm install && npm run dev   # terminal 2: http://localhost:5173
 ```
 
+### Optional: cloud models through OpenRouter
+
+Off by default, so the app stays fully offline. To also offer open-weight models hosted on OpenRouter, set a key in the environment before starting the app or the API. Never put the key in a file in this repo.
+
+```bash
+export OPENROUTER_API_KEY=sk-or-...           # your key
+export OPENROUTER_MODELS=liquid/lfm-2.5-2.6b:free,google/gemma-4-26b-a4b-it:free   # optional; defaults in ramadi.py
+streamlit run app.py                           # or: python api.py
+```
+
+Cloud models appear in the model picker marked as cloud. Choosing one sends the household numbers and the prompt to OpenRouter, and the app says so on screen. The same validation, retries and template fallback apply. A free-tier key only works with `:free` models, which are often busy upstream.
+
 ## Test
 
 ```bash

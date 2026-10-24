@@ -119,7 +119,7 @@ def put(text, field):
     if field == "summary":
         return plan(summary=text)
     if field in ("greywater_steps", "rainwater_steps"):
-        return plan(**{field: [text]})
+        return plan(**{field: [text, "Fit the parts.", "Check for leaks."]})  # lists need 3 to 5 steps
     if field == "material_reason":
         return plan(materials=[{"item_id": "drip_kit", "quantity": 1, "reason": text}])
     return plan(plants=[{"plant_id": "olive", "reason": text}])
@@ -399,3 +399,69 @@ def test_price_empty_plan(tables):
     bp = r.Blueprint.model_validate({**plan(), "materials": []})
     bom = r.price(bp, tables.catalog)
     assert list(bom.columns) == r.BOM_COLUMNS and r.plan_cost(bom) == 0
+
+
+# ---------------------------------------------------------------- AI cannot move payback, skip parts or mix scripts
+
+@pytest.mark.parametrize("steps", [["One."], ["One.", "Two."], [f"Step {i}." for i in range(6)]])
+def test_step_count_must_be_3_to_5(steps, tables):
+    for field in ("rainwater_steps", "greywater_steps"):
+        assert code(plan(**{field: steps}), tables) == r.SCHEMA
+
+
+@pytest.mark.parametrize("text", ["Safe to consume after boiling.", "Use it for cooking.", "Route lavatory water here.",
+                                  "Add WC water.", "Add washing-up water.", "Safe and pоtable.",  # Cyrillic о
+                                  "يمكن استخدامها في الطبخ.", "صالحة للطهي."])
+def test_more_unsafe_wording_rejected(text, tables):
+    assert code(plan(summary=text), tables) == r.BANNED_TERM
+
+
+def test_water_consumption_is_still_allowed(tables):
+    bp, why = check(plan(summary="Cuts the home's water consumption."), tables)
+    assert bp and why is None, why
+
+
+def test_english_text_labelled_arabic_rejected(tables):
+    raw = plan("en", language="ar")  # the whole English plan, claiming to be Arabic
+    assert code(raw, tables, lang="ar") == r.WRONG_SCRIPT
+
+
+def test_arabic_text_labelled_english_rejected(tables):
+    raw = plan("ar", language="en")
+    assert code(raw, tables) == r.WRONG_SCRIPT
+
+
+def test_one_latin_word_in_arabic_is_fine(tables):
+    bp, why = check(plan("ar", summary="خطة لجمع المطر وإعادة استخدام مياه greywater لسقي الأشجار في الحديقة."), tables, lang="ar")
+    assert bp and why is None, why
+
+
+def test_code_adds_tank_and_sizes_gutter(tables):
+    raw = plan(materials=[{"item_id": "gutter_pvc", "quantity": 1, "reason": "x"},
+                          {"item_id": "drip_kit", "quantity": 1, "reason": "x"}])
+    bp, _ = r.validate(raw, tables.catalog, tables.plants, "low", "en", profile=PROFILE)
+    qty = {m.item_id: m.quantity for m in bp.materials}
+    assert qty["gutter_pvc"] == r.gutter_metres(PROFILE["roof_m2"]) and "tank_1m3" in qty
+    assert {"first_flush", "label_kit"} <= set(qty)
+    bp, _ = r.validate(plan(materials=[]), tables.catalog, tables.plants, "full", "en", profile=PROFILE)
+    assert {"tank_2m3", "gutter_pvc"} <= {m.item_id for m in bp.materials}
+
+
+def test_model_never_shrinks_gutter_below_roof_or_adds_second_tank(tables):
+    raw = plan(materials=[{"item_id": "gutter_pvc", "quantity": 50, "reason": "x"},
+                          {"item_id": "tank_1m3", "quantity": 2, "reason": "x"}])
+    bp, _ = r.validate(raw, tables.catalog, tables.plants, "low", "en", profile=PROFILE)
+    qty = {m.item_id: m.quantity for m in bp.materials}
+    assert qty["gutter_pvc"] == 50 and qty["tank_1m3"] == 2 and "tank_2m3" not in qty
+
+
+def test_payback_cost_ignores_the_model_plan(tables):
+    a = r.assumption_values(tables.assumptions)
+    res = r.simulate(PROFILE, tables.shares, a)
+    cheap = plan(materials=[{"item_id": "drip_kit", "quantity": 1, "reason": "x"}])
+    gen = r.generate(PROFILE, res, tables.catalog, tables.plants, "low", "en", "fake", chat=lambda *x: cheap)
+    assert gen.source == "model"
+    std = r.system_cost(PROFILE, "low", tables.catalog)
+    assert std == r.plan_cost(r.price(r.template_blueprint(PROFILE, "low", "en"), tables.catalog))
+    assert r.plan_cost(r.price(gen.blueprint, tables.catalog)) != std  # the plan's own total can differ…
+    assert r.system_cost(PROFILE, "low", tables.catalog) == std        # …payback's cost never does

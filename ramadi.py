@@ -4,6 +4,7 @@ Code owns every number, price and safety rule. The model only picks catalog IDs 
 """
 import json
 import logging
+import os
 import re
 import unicodedata
 import urllib.error
@@ -262,6 +263,7 @@ def community(result, imp, homes):
 
 QTY_MIN, QTY_MAX = 1, 50  # PRD M6
 REASON_MAX = 200
+STEPS_MIN, STEPS_MAX = 3, 5  # per list, as the prompt asks
 
 
 # strict: no "5" for 5 or 5.0 for 5; extra="forbid": no fields the schema does not name.
@@ -285,8 +287,8 @@ class Blueprint(BaseModel):
     model_config = STRICT
     language: Literal["en", "ar"]
     summary: str = Field(min_length=1)
-    greywater_steps: list[str] = Field(min_length=1)
-    rainwater_steps: list[str] = Field(min_length=1)
+    greywater_steps: list[str] = Field(min_length=STEPS_MIN, max_length=STEPS_MAX)
+    rainwater_steps: list[str] = Field(min_length=STEPS_MIN, max_length=STEPS_MAX)
     materials: list[PlanItem]
     plants: list[PlantPick]
 
@@ -326,13 +328,15 @@ DISCLAIMER = {
 # would let real mentions through. A false rejection only costs a retry (PRD §6).
 BANNED_TERMS = ["bleach", "chlorine", "chlorin", "clorox", "chemical", "drinking", "drink", "potable", "toilet",
                 "kitchen", "dishwasher", "blackwater", "black water", "sewage",
+                "consume", "cook", "lavator", "wc", "washing up",
                 "كلور", "مبيض", "كيميا", "للشرب", "شرب", "مرحاض", "مراحيض", "تواليت", "مطبخ", "مجلى",
-                "جلاية", "مياه سوداء", "مياه السوداء", "مياه الصرف الصحي"]
+                "جلاية", "مياه سوداء", "مياه السوداء", "مياه الصرف الصحي", "طبخ", "طهي"]
 # Phrases removed before matching so a rain tank may still feed toilet cisterns (PRD §8).
 ALLOWED_PHRASES = ["toilet cistern", "toilet tank", "toilet flushing", "flushing toilet", "flush toilet",
                    "flush the toilet", "طرد المرحاض", "طرد المراحيض"]
 REQUIRED_ITEMS = ["first_flush", "label_kit"]
 REQUIRED_REASON = {"en": "Required by the safety rules.", "ar": "مطلوب حسب قواعد السلامة."}
+SIZED_REASON = {"en": "Sized by code to run along the whole roof edge.", "ar": "حدّد الكود طوله ليغطي حافة السطح كاملة."}
 
 # Rejection codes, one per rule, so logs and tests can tell them apart.
 EMPTY_RESPONSE = "empty_response"
@@ -346,6 +350,8 @@ BOM_OVER_BUDGET = "bom_over_budget"
 UNKNOWN_PLANT = "unknown_plant"
 PLANT_NOT_GREYWATER_SAFE = "plant_not_greywater_safe"
 BANNED_TERM = "banned_term"
+WRONG_SCRIPT = "wrong_script"
+SCRIPT_MAX_FOREIGN = 0.3  # share of letters from the other script above which a plan is rejected
 
 
 class Rejection(NamedTuple):
@@ -356,7 +362,9 @@ class Rejection(NamedTuple):
         return f"{self.code}: {self.detail}" if self.detail else self.code
 
 
-_FOLD = str.maketrans({"ٱ": "ا", "ة": "ه", "ى": "ي", "\u0640": None})  # wasla, ta marbuta, alef maksura, tatweel
+_FOLD = str.maketrans({"ٱ": "ا", "ة": "ه", "ى": "ي", "\u0640": None,  # wasla, ta marbuta, alef maksura, tatweel
+                       # Cyrillic letters that look Latin, so "pоtable" with a Cyrillic о is still caught
+                       "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "у": "y", "х": "x", "і": "i", "ј": "j", "ѕ": "s"})
 
 
 def normalise(text):
@@ -392,7 +400,7 @@ def budget_cap(a, budget):
     return a.get(f"budget_cap_{budget}_jod")
 
 
-def validate(raw, catalog, plants, budget, lang=None, max_total_jod=None):
+def validate(raw, catalog, plants, budget, lang=None, max_total_jod=None, profile=None):
     """Parse and check model output. Returns (Blueprint, None) or (None, Rejection)."""
     if isinstance(raw, (str, bytes)):
         text = clean_model_text(raw.decode("utf-8", "replace") if isinstance(raw, bytes) else raw)
@@ -430,18 +438,49 @@ def validate(raw, catalog, plants, budget, lang=None, max_total_jod=None):
                         *(m.reason for m in bp.materials), *(p.reason for p in bp.plants)])
     if term := find_banned(text):
         return None, Rejection(BANNED_TERM, term)
-    bp = enforce_required(bp)
+    if (share := foreign_share(text, bp.language)) > SCRIPT_MAX_FOREIGN:
+        return None, Rejection(WRONG_SCRIPT, f"{share:.0%} of letters are not {bp.language}")
+    bp = enforce_required(bp, profile, budget)
     if max_total_jod is not None and (total := plan_cost(price(bp, catalog))) > max_total_jod:
         return None, Rejection(BOM_OVER_BUDGET, f"{total:.0f} > {max_total_jod:.0f} JOD")
     return bp, None
 
 
-def enforce_required(bp):
-    """First flush and labels go in every plan, whatever the model chose."""
-    have = {m.item_id for m in bp.materials}
+def foreign_share(text, lang):
+    """Share of letters in text from the other script: Latin in an Arabic plan, Arabic in an English one."""
+    letters = [c for c in text if c.isalpha()]
+    if not letters:
+        return 0.0
+    latin = sum("a" <= c.lower() <= "z" for c in letters)
+    return (latin if lang == "ar" else len(letters) - latin) / len(letters)
+
+
+def gutter_metres(roof_m2):
+    """Gutter needed for a square roof's perimeter, roughly: 2 × √area metres, kept within catalogue limits."""
+    return max(4, min(QTY_MAX, round((roof_m2 ** 0.5) * 2)))
+
+
+def tank_for(budget):
+    return "tank_1m3" if budget == "low" else "tank_2m3"
+
+
+def enforce_required(bp, profile=None, budget=None):
+    """Code-owned minimums, whatever the model chose: first flush and labels always; with a profile, also a tank
+    and enough gutter for the roof, so a model can't make the system look cheaper by leaving parts out."""
+    have = {m.item_id: m for m in bp.materials}
     for item in REQUIRED_ITEMS:
         if item not in have:
             bp.materials.append(PlanItem(item_id=item, quantity=1, reason=REQUIRED_REASON[bp.language]))
+    if profile is None or budget is None:
+        return bp
+    if not any(i.startswith("tank_") for i in have):
+        bp.materials.append(PlanItem(item_id=tank_for(budget), quantity=1, reason=REQUIRED_REASON[bp.language]))
+    need = gutter_metres(profile["roof_m2"])
+    if "gutter_pvc" not in have:
+        bp.materials.append(PlanItem(item_id="gutter_pvc", quantity=need, reason=SIZED_REASON[bp.language]))
+    elif have["gutter_pvc"].quantity < need:
+        have["gutter_pvc"].quantity = need
+        have["gutter_pvc"].reason = SIZED_REASON[bp.language]
     return bp
 
 
@@ -481,8 +520,8 @@ def plan_cost(bom):
 
 def template_blueprint(profile, budget, lang):
     """Deterministic plan used when no model is available or its output fails validation."""
-    gutter_m = max(4, min(50, round((profile["roof_m2"] ** 0.5) * 2)))
-    tank = "tank_1m3" if budget == "low" else "tank_2m3"
+    gutter_m = gutter_metres(profile["roof_m2"])
+    tank = tank_for(budget)
     items = [("first_flush", 1), ("leaf_screen", 2), ("gutter_pvc", gutter_m), ("downpipe_110", 2), (tank, 1),
              ("gw_valve", 1), ("gw_filter", 1), ("gw_pipe_40", 3), ("drip_kit", 1), ("label_kit", 1)]
     items += [("gw_drum", 1), ("mulch_basin", 2)] if budget == "low" else [("transfer_pump", 1), ("float_switch", 1)]
@@ -516,8 +555,15 @@ def template_blueprint(profile, budget, lang):
             "plants": [{"plant_id": "olive", "reason": "Drought tolerant; fruit never touches the water."},
                        {"plant_id": "pomegranate", "reason": "Does well on drip under mulch."}],
         }
-    bp["materials"] = [{"item_id": i, "quantity": q, "reason": "Standard part for this budget level."} for i, q in items]
+    reason = "قطعة أساسية لهذه الميزانية." if lang == "ar" else "Standard part for this budget level."
+    bp["materials"] = [{"item_id": i, "quantity": q, "reason": reason} for i, q in items]
     return Blueprint.model_validate(bp)
+
+
+def system_cost(profile, budget, catalog):
+    """JOD used for payback: the standard (template) parts list for this budget. It never depends on what a model
+    picked, so payback stays a code-owned number (PRD §6); the plan's own parts total is shown separately."""
+    return plan_cost(price(template_blueprint(profile, budget, "en"), catalog))
 
 
 # ---------------------------------------------------------------- local model (Ollama)
@@ -554,11 +600,13 @@ class BadResponse(ModelError):
 
 
 def list_models():
+    """Installed Ollama models, then OpenRouter models if OPENROUTER_API_KEY is set."""
     try:
         with urllib.request.urlopen(f"{OLLAMA_URL}/api/tags", timeout=LIST_TIMEOUT_S) as resp:
-            return [m["name"] for m in json.load(resp)["models"]]
+            local = [m["name"] for m in json.load(resp)["models"]]
     except Exception:  # Ollama not running or not installed: the app still works on the template
-        return []
+        local = []
+    return local + openrouter_models()
 
 
 def ollama_chat(model, prompt):
@@ -587,6 +635,87 @@ def ollama_chat(model, prompt):
     content = (payload.get("message") or {}).get("content") if isinstance(payload, dict) else None
     if not isinstance(content, str):
         raise BadResponse("reply has no message.content")
+    return content
+
+
+# ---------------------------------------------------------------- optional cloud models (OpenRouter)
+
+# Off unless OPENROUTER_API_KEY is set. A cloud model sends the household numbers and prompt to OpenRouter,
+# so the UI labels it; the local Ollama path stays the default and the app still runs offline without it.
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+OPENROUTER_PREFIX = "openrouter:"
+# Open-weight models only, to stay within the open-source AI challenge. Override with OPENROUTER_MODELS=a,b,c.
+# The ":free" ones work on a free-tier key (no credit, about 50 requests a day) but are often busy upstream.
+OPENROUTER_MODELS = ["liquid/lfm-2.5-2.6b:free", "google/gemma-4-26b-a4b-it:free", "google/gemma-4-31b-it:free",
+                     "qwen/qwen3.6-35b-a3b", "mistralai/mistral-small-3.2-24b-instruct",
+                     "meta-llama/llama-3.3-70b-instruct"]
+OPENROUTER_ERROR_MAX = 160  # characters of OpenRouter's error message kept in the on-screen notes
+
+
+def _openrouter_reason(e):
+    """OpenRouter's own error message from an HTTPError body, e.g. 'Key limit exceeded', or '' if none."""
+    try:
+        err = json.loads(e.read() or b"{}").get("error") or {}
+        text = (err.get("metadata") or {}).get("raw") or err.get("message") or ""
+    except (ValueError, AttributeError, OSError):
+        return ""
+    return f": {str(text)[:OPENROUTER_ERROR_MAX]}" if text else ""
+
+
+def is_cloud(model):
+    return bool(model) and model.startswith(OPENROUTER_PREFIX)
+
+
+def openrouter_models():
+    if not os.environ.get("OPENROUTER_API_KEY"):
+        return []
+    custom = os.environ.get("OPENROUTER_MODELS")
+    ids = [m.strip() for m in custom.split(",") if m.strip()] if custom else OPENROUTER_MODELS
+    return [OPENROUTER_PREFIX + m for m in ids]
+
+
+def openrouter_chat(model, prompt):
+    """One chat call to OpenRouter. Returns the reply text or raises a ModelError subclass."""
+    key = os.environ.get("OPENROUTER_API_KEY")
+    if not key:
+        raise ModelUnavailable("OPENROUTER_API_KEY is not set")
+    schema = Blueprint.model_json_schema()
+    body = json.dumps({
+        "model": model.removeprefix(OPENROUTER_PREFIX),
+        **MODEL_OPTIONS,
+        "messages": [{"role": "system", "content": "Reply with one JSON object matching this JSON schema:\n" + json.dumps(schema)},
+                     {"role": "user", "content": prompt}],
+        "response_format": {"type": "json_schema", "json_schema": {"name": "blueprint", "strict": True, "schema": schema}},
+    }).encode()
+    req = urllib.request.Request(OPENROUTER_URL, body, {
+        "Content-Type": "application/json", "Authorization": f"Bearer {key}",
+        "X-Title": "Ramadi-Cycle", "HTTP-Referer": "https://github.com/moh05-a/Ramadi-Cycle"})
+    try:
+        with urllib.request.urlopen(req, timeout=CHAT_TIMEOUT_S) as resp:
+            payload = json.load(resp)
+    except urllib.error.HTTPError as e:
+        why = _openrouter_reason(e)
+        if e.code == 404:
+            raise ModelNotFound(f"{model} is not on OpenRouter{why}") from None
+        if e.code == 429 or e.code >= 500:
+            raise BadResponse(f"HTTP {e.code}{why}") from None  # rate limit or provider error: a retry may work
+        raise ModelUnavailable(f"OpenRouter refused the request (HTTP {e.code}){why}") from None  # bad key, no credit
+    except TimeoutError:
+        raise ModelTimeout(f"no reply within {CHAT_TIMEOUT_S} s") from None
+    except urllib.error.URLError as e:
+        if isinstance(e.reason, TimeoutError):
+            raise ModelTimeout(f"no reply within {CHAT_TIMEOUT_S} s") from None
+        raise ModelUnavailable(str(e.reason)) from None
+    except (ValueError, UnicodeDecodeError):
+        raise BadResponse("reply is not JSON") from None
+    except OSError as e:
+        raise ModelUnavailable(e.__class__.__name__) from None
+    try:
+        content = payload["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        raise BadResponse("reply has no choices[0].message.content") from None
+    if not isinstance(content, str):
+        raise BadResponse("reply has no choices[0].message.content")
     return content
 
 
@@ -640,7 +769,7 @@ def generate(profile, result, catalog, plants, budget, lang, model, chat=None, m
     Transport problems (not running, model not pulled, timeout) stop at once: retrying cannot help and
     a timeout already cost CHAT_TIMEOUT_S.
     """
-    chat = chat or ollama_chat  # looked up at call time so tests can replace it
+    chat = chat or (openrouter_chat if is_cloud(model) else ollama_chat)  # looked up at call time so tests can replace it
     notes = []
     if model:
         prompt = build_prompt(profile, result, catalog, plants, budget, lang)
@@ -654,7 +783,7 @@ def generate(profile, result, catalog, plants, budget, lang, model, chat=None, m
                 if err.retry:
                     continue
                 break
-            bp, why = validate(raw, catalog, plants, budget, lang, max_total_jod)
+            bp, why = validate(raw, catalog, plants, budget, lang, max_total_jod, profile)
             if bp:
                 return Generation(bp, "model", notes)
             notes.append(f"attempt {attempt}: rejected: {why}")

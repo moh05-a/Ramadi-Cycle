@@ -135,7 +135,7 @@
 /* over the dark hero only: cream logo, frosted menu and cream text. In light mode the bar keeps its normal colours,
    because the light hero is already cream underneath. */
 :root[data-theme="dark"] .sh--over-hero .sh-brand:focus-visible { outline-color: #ece9d8; }
-:root[data-theme="dark"] .sh--over-hero .sh-brand__main { color: #ece9d8; }
-:root[data-theme="dark"] .sh--over-hero .sh-brand__sub { color: rgba(236, 233, 216, 0.72); }
+:root[data-theme="dark"] .sh--over-hero .sh-wordmark__ar { color: #ece9d8; }
+:root[data-theme="dark"] .sh--over-hero .sh-wordmark__en { color: rgba(236, 233, 216, 0.72); }
 :root[data-theme="dark"] .sh--over-hero .sh-mobile__btn { background: rgba(236, 233, 216, 0.12); color: #ece9d8; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
 @media (prefers-reduced-motion: reduce) { .sh-bar { transition: none; } }

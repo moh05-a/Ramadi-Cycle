@@ -24,6 +24,11 @@ export function TopBar({ lang, setLang, theme, toggleTheme, active }: Props) {
   const menuId = "sh-menu";
   const button = useRef<HTMLButtonElement>(null);
 
+  // The flip plays only after the language actually changes, never on first load or on later re-renders.
+  const [flip, setFlip] = useState(false);
+  const lastLang = useRef(lang);
+  useEffect(() => { if (lastLang.current !== lang) { lastLang.current = lang; setFlip(true); } }, [lang]);
+
   // close the menu when the page changes, and on Escape (returning focus to the button)
   useEffect(() => setOpen(false), [active]);
   useEffect(() => {
@@ -47,8 +52,11 @@ export function TopBar({ lang, setLang, theme, toggleTheme, active }: Props) {
         <div className="sh-bar__side">
           <a className="sh-brand" href={href("")} aria-label={`${sh.brand}, ${sh.brand2}: ${sh.homeLink}`}>
             <DropLogo />
-            <span className="sh-brand__main" aria-hidden="true">{sh.brand}</span>
-            <span className="sh-brand__sub" lang={lang === "ar" ? "en" : "ar"} aria-hidden="true">{sh.brand2}</span>
+            {/* keyed by language so each change remounts it and plays the flip */}
+            <span key={lang} className={`sh-wordmark is-${lang}${flip ? " is-flip" : ""}`} aria-hidden="true">
+              <span className="sh-wordmark__ar" lang="ar">{SHELL.ar.brand}</span>
+              <span className="sh-wordmark__en" lang="en">{SHELL.en.brand.toUpperCase()}</span>
+            </span>
           </a>
         </div>
 

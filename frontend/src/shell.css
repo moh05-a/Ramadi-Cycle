@@ -16,8 +16,18 @@
 .sh-bar__side { flex: 1 1 0; min-width: max-content; display: flex; align-items: center; }
 .sh-bar__side--end { justify-content: flex-end; gap: 10px; }
 .sh-brand { display: flex; align-items: center; gap: 14px; }
-.sh-brand__main { font-size: 1.375rem; font-weight: 600; letter-spacing: -0.01em; }
-.sh-brand__sub { font-size: 1rem; color: var(--rc-stone); }
+/* calligraphic wordmark. Arabic mode: Ruq'ah Arabic over small spaced capitals. English mode flips it: capitals
+   over the Arabic. The flip animation only plays when the language changes (see topbar.tsx). */
+.sh-brand { perspective: 500px; }
+.sh-wordmark { display: flex; flex-direction: column; align-items: center; line-height: 1; transform-origin: 50% 50%; }
+.sh-wordmark.is-en { flex-direction: column-reverse; }
+.sh-wordmark.is-flip { animation: sh-flip 0.5s cubic-bezier(0.3, 0.7, 0.2, 1); }
+@keyframes sh-flip { from { transform: rotateX(90deg); opacity: 0; } to { transform: none; opacity: 1; } }
+.sh-wordmark__ar { font-family: "Aref Ruqaa", var(--rc-font-arabic); font-weight: 700; font-size: 2.5rem; line-height: 1.25; color: var(--rc-ink); }
+.sh-wordmark.is-ar .sh-wordmark__ar { padding-block-end: 0.4rem; } /* room for the long descenders above the capitals */
+.sh-wordmark.is-en .sh-wordmark__ar { padding-block-start: 0.1rem; }
+.sh-wordmark__en { font-family: var(--rc-font-latin); font-weight: 600; font-size: 0.6875rem; letter-spacing: 0.32em; padding-inline-start: 0.32em; color: var(--rc-stone); } /* padding balances the trailing letter-space */
+.sh-wordmark.is-en .sh-wordmark__en { padding-block-end: 0.15rem; }
 .sh-navwrap { display: contents; }
 
 /* pill nav: a circle of the surface colour fills the pill from the bottom centre on hover */
@@ -151,5 +161,6 @@
   .rc-tabs [role="tabpanel"][hidden] { display: block !important; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .sh-wordmark.is-flip { animation: none; }
   .sh-pill__item, .sh-pill__item::before, .sh-sw__knob, .sh-sun, .sh-sun__disc, .sh-ray, .sh-burger i { transition: none; }
 }

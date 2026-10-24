@@ -1,5 +1,7 @@
 # Ramadi-Cycle brand
 
+Tokens, React components and the living style guide (dark mode, RTL, charts, copy) are in [`brand-kit/`](brand-kit/). Run `npm run dev` there.
+
 ## Name
 
 **Ramadi-Cycle** in English, **رمادي** in Arabic. *Ramadi* means grey: greywater (المياه الرمادية), and the grey concrete roofs that catch the rain. Always write the Arabic name next to the English one on first use. Never translate it, never abbreviate it to "RC".
@@ -22,15 +24,15 @@ Taken from what is on a Jordanian roof: concrete, water in a tank, olive trees, 
 | Name | Hex | Use |
 | --- | --- | --- |
 | Ink | `#1F2A2E` | Text, roof bar in the mark |
-| Concrete | `#8A8D8F` | Mark, secondary graphics |
-| Concrete light | `#E9E7E2` | Panels, sidebar |
-| Plaster | `#F4F2EE` | Page background |
+| Concrete | `#8A8D8F` | Mark and illustrations only (too light for text) |
+| Concrete light | `#E2E4E0` | Panels, sidebar |
+| Plaster | `#EEEFEC` | Page background |
 | Cistern | `#1E5B7A` | Primary: buttons, water in charts, links |
-| Olive | `#6B7F3A` | Savings, passed checks |
-| Rust | `#B5562B` | Safety rules and warnings only |
-| Stone | `#6B7175` | Captions, Arabic name in the logo |
+| Olive | `#4E6128` | Savings, passed checks |
+| Rust | `#A2441E` | Safety rules and warnings only |
+| Stone | `#596165` | Captions, Arabic name in the logo |
 
-Cistern on Plaster passes WCAG AA for body text. Rust is reserved for safety, so a reader learns that rust means "read this". Don't use it for decoration.
+Cistern on Plaster passes WCAG AA for body text. Rust is reserved for safety, so a reader learns that rust means "read this". Safety warnings use a rust triangle next to the text, not a coloured side border. Don't use rust for decoration.
 
 ## Type
 

@@ -13,9 +13,10 @@ st.markdown(
     [data-testid="stMetricValue"] { font-variant-numeric: tabular-nums; }
     .rc-rtl { direction: rtl; text-align: right; }
     .rc-badge { display:inline-block; padding:4px 10px; border-radius:4px; font-weight:600;
-                background:#E3EBDD; color:#3F5222; border:1px solid #9CAF7A; }
-    .rc-warn { border-left:3px solid #B5562B; padding:2px 0 2px 12px; margin:6px 0; }
-    .rc-rtl .rc-warn { border-left:none; border-right:3px solid #B5562B; padding:2px 12px 2px 0; }
+                background:#E0E6D5; color:#4E6128; border:1px solid #4E6128; }
+    .rc-warn { padding-inline-start:26px; margin:6px 0;
+               background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1.5 15 14.5H1z' fill='%23A2441E'/%3E%3Cpath d='M8 6v4' stroke='%23fff' stroke-width='1.6'/%3E%3Crect x='7.2' y='11.2' width='1.6' height='1.6' fill='%23fff'/%3E%3C/svg%3E") no-repeat left 0 top 0.25em / 16px; }
+    .rc-rtl .rc-warn { background-position:right 0 top 0.25em; }
     </style>""",
     unsafe_allow_html=True,
 )

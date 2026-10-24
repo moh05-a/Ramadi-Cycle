@@ -1,0 +1,89 @@
+/* Ramadi-Cycle tokens. Values must match src/tokens.ts (checked by tokens.test.ts). */
+:root {
+  --rc-bg: #EEEFEC;
+  --rc-surface: #E2E4E0;
+  --rc-paper: #F8F8F6;
+  --rc-ink: #1F2A2E;
+  --rc-stone: #596165;
+  --rc-rule: #CDD0CB;
+  --rc-cistern: #1E5B7A;
+  --rc-cistern-hover: #164861;
+  --rc-on-cistern: #FFFFFF;
+  --rc-olive: #4E6128;
+  --rc-olive-tint: #E0E6D5;
+  --rc-rust: #A2441E;
+  --rc-rust-tint: #F1E1D8;
+  --rc-bought: #C4C7C2;
+  --rc-mark-roof: #1F2A2E;
+  --rc-mark-tank: #8A8D8F;
+  --rc-mark-water: #1E5B7A;
+
+  --rc-font-latin: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  --rc-font-arabic: "IBM Plex Sans Arabic", "Geeza Pro", Tahoma, sans-serif;
+  --rc-font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+
+  --rc-text-3xl: 2.441rem;
+  --rc-text-2xl: 1.953rem;
+  --rc-text-xl: 1.5625rem;
+  --rc-text-lg: 1.25rem;
+  --rc-text-base: 1rem;
+  --rc-text-sm: 0.875rem;
+  --rc-text-xs: 0.75rem;
+
+  --rc-space-1: 4px;
+  --rc-space-2: 8px;
+  --rc-space-3: 12px;
+  --rc-space-4: 16px;
+  --rc-space-6: 24px;
+  --rc-space-8: 32px;
+  --rc-space-12: 48px;
+  --rc-space-16: 64px;
+
+  --rc-radius: 2px;
+  --rc-ease: 120ms ease-out;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --rc-bg: #121719;
+    --rc-surface: #1A2124;
+    --rc-paper: #212A2E;
+    --rc-ink: #E3E6E2;
+    --rc-stone: #9CA3A6;
+    --rc-rule: #2E383C;
+    --rc-cistern: #6DB0D4;
+    --rc-cistern-hover: #8EC3E0;
+    --rc-on-cistern: #121719;
+    --rc-olive: #A5BF70;
+    --rc-olive-tint: #26301C;
+    --rc-rust: #E5895F;
+    --rc-rust-tint: #34221A;
+    --rc-bought: #3A4549;
+    --rc-mark-roof: #E3E6E2;
+    --rc-mark-tank: #6F7578;
+    --rc-mark-water: #3A86B0;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --rc-bg: #121719;
+  --rc-surface: #1A2124;
+  --rc-paper: #212A2E;
+  --rc-ink: #E3E6E2;
+  --rc-stone: #9CA3A6;
+  --rc-rule: #2E383C;
+  --rc-cistern: #6DB0D4;
+  --rc-cistern-hover: #8EC3E0;
+  --rc-on-cistern: #121719;
+  --rc-olive: #A5BF70;
+  --rc-olive-tint: #26301C;
+  --rc-rust: #E5895F;
+  --rc-rust-tint: #34221A;
+  --rc-bought: #3A4549;
+  --rc-mark-roof: #E3E6E2;
+  --rc-mark-tank: #6F7578;
+  --rc-mark-water: #3A86B0;
+  color-scheme: dark;
+}

@@ -6,6 +6,7 @@ import { COPY, PAGES } from "./copy";
 import { href, type Route } from "./router";
 import type { AI, Store } from "./store";
 
+const isCloud = (m: string) => m.startsWith("openrouter:");
 export function GovField({ label, value, onChange, options, names }: {
   label: string; value: string; onChange: (v: string) => void; options: Options["governorates"]; names: Record<string, string>;
 }) {
@@ -204,7 +205,7 @@ export function AIBox({ ai, plan, models, lang }: { ai: AI; plan: PlanBlock["pla
           <div className="app-field">
             <label htmlFor={id}>{t.model}</label>
             <select id={id} value={ai.model} onChange={(e) => ai.setModel(e.target.value)} disabled={ai.generating} dir="ltr">
-              {models.map((m) => <option key={m} value={m}>{m}</option>)}
+              {models.map((m) => <option key={m} value={m}>{isCloud(m) ? `${m.slice(11)} (${t.cloudTag})` : m}</option>)}
             </select>
           </div>
           {ai.generating
@@ -213,6 +214,7 @@ export function AIBox({ ai, plan, models, lang }: { ai: AI; plan: PlanBlock["pla
           {ai.isAI && !ai.generating && <Button variant="secondary" onClick={ai.reset}>{t.useTemplate}</Button>}
         </div>
       )}
+      {isCloud(ai.model) && models.length > 0 && <Notice>{t.cloudNote}</Notice>}
       {ai.generating ? <p className="app-ai__status" role="status">{t.aiWorking(ai.model)}</p> : status}
     </div>
   );

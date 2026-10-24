@@ -44,9 +44,12 @@ with st.sidebar:
     lang = st.radio("Blueprint language", ["en", "ar"], format_func={"en": "English", "ar": "العربية"}.get,
                     horizontal=True)
     models = r.list_models()
-    model = st.selectbox("Local model", models) if models else None
+    model = st.selectbox("Model", models) if models else None
     if not models:
         st.caption("Ollama is not running. Blueprints use the built-in template.")
+    elif r.is_cloud(model):
+        st.warning("Cloud model: your household numbers and the prompt are sent to OpenRouter. "
+                   "Pick a local model to keep everything on this laptop.")
     go = st.button("Generate blueprint", type="primary", width="stretch")
 
 try:
@@ -70,7 +73,9 @@ if go:
 plan_bp = st.session_state["plan"][0] if "plan" in st.session_state else r.template_blueprint(profile, budget, lang)
 bom = r.price(plan_bp, catalog)
 cost = r.plan_cost(bom)
-imp = r.impact(res["water"], cost, a)
+# Payback always uses the standard parts list, so a model's part choices can't move it.
+std_cost = r.system_cost(profile, budget, catalog)
+imp = r.impact(res["water"], std_cost, a)
 
 # ---------------------------------------------------------------- metric row
 
@@ -82,7 +87,8 @@ c[1].metric("Tanker trips avoided", f"{imp['trips']:.1f} /yr")
 c[2].metric("Saved", f"{imp['jod']:.0f} JOD/yr")
 c[3].metric("CO₂ cut", f"{imp['co2']:.0f} kg/yr")
 c[4].metric("Payback", r.format_payback(imp["payback_months"]),
-            help=f"System cost {cost:.0f} JOD from the catalog")
+            help=f"Uses the standard parts list for this budget ({std_cost:.0f} JOD), so it doesn't depend on "
+                 "which parts an AI plan picked.")
 
 impact_tab, plan_tab, method_tab, data_tab = st.tabs(["Impact", "Blueprint", "Safety & method", "Assumptions & sources"])
 
@@ -191,8 +197,9 @@ with method_tab:
     st.markdown("#### Output schema the model must match")
     st.code(inspect.getsource(r.PlanItem) + "\n" + inspect.getsource(r.PlantPick) + "\n"
             + inspect.getsource(r.Blueprint), language="python")
-    st.markdown(f"#### Model\n{model or 'None running. Template plan only.'}  \nRuns through Ollama at "
-                f"`{r.OLLAMA_URL}`. Nothing leaves this machine.")
+    where = ("Runs on OpenRouter. The household numbers and prompt leave this machine." if r.is_cloud(model)
+             else f"Runs through Ollama at `{r.OLLAMA_URL}`. Nothing leaves this machine.")
+    st.markdown(f"#### Model\n{model or 'None running. Template plan only.'}  \n{where}")
     with st.expander("Prompt sent to the model"):
         st.code(r.build_prompt(profile, res, catalog, plants, budget, lang), language="text")
 

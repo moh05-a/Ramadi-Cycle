@@ -96,11 +96,12 @@ def _profile(req):
     return profile, r.simulate(profile, SHARES, A)
 
 
-def _plan_block(bp, source, notes, notice, profile, res, homes):
-    """Priced, safety-checked plan plus the numbers that depend on its cost."""
+def _plan_block(bp, source, notes, notice, profile, res, homes, budget):
+    """Priced, safety-checked plan plus impact. Payback uses the standard parts list, never the model's picks."""
     bom = r.price(bp, CATALOG)
     cost = r.plan_cost(bom)
-    imp = r.impact(res["water"], cost, A)
+    std_cost = r.system_cost(profile, budget, CATALOG)
+    imp = r.impact(res["water"], std_cost, A)
     name_col = "name_ar" if bp.language == "ar" else "name_en"
     return {
         "plan": {
@@ -118,6 +119,7 @@ def _plan_block(bp, source, notes, notice, profile, res, homes):
             "cost": cost,
         },
         "impact": imp,
+        "payback_cost": std_cost,
         "payback": r.format_payback(imp["payback_months"]),
         "community": r.community(res, imp, homes),
         "markdown": r.to_markdown(bp, bom, profile, res),
@@ -135,7 +137,7 @@ def plan(req: PlanRequest):
         "balance": _records(res["balance"]),
         "sareef": r.sareef(res, A, after=True),
         "assumptions": A,
-        **_plan_block(bp, "template", [], None, profile, res, req.homes),
+        **_plan_block(bp, "template", [], None, profile, res, req.homes, req.budget),
         "budget_costs": {b: r.plan_cost(r.price(blueprints[b], CATALOG)) for b in BUDGETS},
         "warnings": r.WARNINGS[req.lang],
         "disclaimer": r.DISCLAIMER[req.lang],
@@ -149,7 +151,8 @@ def generate(req: GenerateRequest, chat=None):
     gen = r.generate(profile, res, CATALOG, PLANTS, req.budget, req.lang, req.model, chat=chat,
                      max_total_jod=r.budget_cap(A, req.budget))
     return {"model": req.model,
-            **_plan_block(gen.blueprint, gen.source, gen.notes, r.fallback_notice(gen, req.model), profile, res, req.homes)}
+            **_plan_block(gen.blueprint, gen.source, gen.notes, r.fallback_notice(gen, req.model), profile, res, req.homes,
+                         req.budget)}
 
 
 ROUTES = {"/api/plan": (PlanRequest, plan), "/api/generate": (GenerateRequest, generate)}

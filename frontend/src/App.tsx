@@ -6,6 +6,7 @@ import {
 } from "./api";
 import { COPY } from "./copy";
 
+const isCloud = (m: string) => m.startsWith("openrouter:");
 const FIELDS: FieldKey[] = ["roof_m2", "people", "showers_pp", "laundry_loads", "capacity_m3"];
 const INTEGER: FieldKey[] = ["people", "showers_pp", "laundry_loads"];
 const START: Record<FieldKey, string> = { roof_m2: "120", people: "5", showers_pp: "5", laundry_loads: "4", capacity_m3: "2" };
@@ -314,6 +315,7 @@ function Results({ data, shown, options, lang, year, homes, setHomes, ai, onDown
               </table>
             </div>
             <p className="app-note">{t.pricesNote}</p>
+            {Math.abs(plan.cost - shown.payback_cost) > 0.5 && <p className="app-note">{t.paybackNote(num(shown.payback_cost))}</p>}
           </div>
 
           <div>
@@ -438,7 +440,7 @@ function AIBox({ ai, plan, models, lang }: { ai: AI; plan: PlanBlock["plan"]; mo
           <div className="app-field">
             <label htmlFor={id}>{t.model}</label>
             <select id={id} value={ai.model} onChange={(e) => ai.setModel(e.target.value)} disabled={ai.generating} dir="ltr">
-              {models.map((m) => <option key={m} value={m}>{m}</option>)}
+              {models.map((m) => <option key={m} value={m}>{isCloud(m) ? `${m.slice(11)} (${t.cloudTag})` : m}</option>)}
             </select>
           </div>
           {ai.generating
@@ -447,6 +449,7 @@ function AIBox({ ai, plan, models, lang }: { ai: AI; plan: PlanBlock["plan"]; mo
           {ai.isAI && !ai.generating && <Button variant="secondary" onClick={ai.reset}>{t.useTemplate}</Button>}
         </div>
       )}
+      {isCloud(ai.model) && models.length > 0 && <Notice>{t.cloudNote}</Notice>}
       {ai.generating ? <p className="app-ai__status" role="status">{t.aiWorking(ai.model)}</p> : status}
     </div>
   );
@@ -474,7 +477,7 @@ function Method({ data, options, lang, model }: { data: PlanResponse; options: O
         <pre dir="ltr" tabIndex={0}>{t.formulaLines.join("\n")}</pre>
 
         <h3 className="app-h3">{t.modelHeading}</h3>
-        <p className="app-note">{model ? t.modelLine(model, m.ollama_url) : options.models.length ? t.modelLine(options.models.join(", "), m.ollama_url) : t.modelNone}</p>
+        <p className="app-note">{model ? (isCloud(model) ? t.cloudLine(model.slice(11)) : t.modelLine(model, m.ollama_url)) : options.models.length ? t.modelLine(options.models.join(", "), m.ollama_url) : t.modelNone}</p>
 
         <details className="app-method__more"><summary>{t.schema}</summary>
           <pre dir="ltr" tabIndex={0}>{JSON.stringify(m.schema, null, 2)}</pre>

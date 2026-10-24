@@ -107,7 +107,10 @@ def test_generate_uses_a_valid_model_plan_and_reprices():
     assert out["plan"]["source"] == "model" and out["plan"]["notice"] is None
     assert {row["item"] for row in out["plan"]["bom"]} >= {"Drip irrigation kit", "First-flush diverter kit"}
     res = r.simulate(api._profile(api.GenerateRequest(**BODY, model="x"))[0], api.SHARES, api.A)
-    assert out["impact"] == pytest.approx(r.impact(res["water"], out["plan"]["cost"], api.A))
+    # payback uses the standard parts list, not the model's cheaper pick
+    std = r.system_cost(api._profile(api.GenerateRequest(**BODY, model="x"))[0], "low", api.CATALOG)
+    assert out["payback_cost"] == std and out["plan"]["cost"] != std
+    assert out["impact"] == pytest.approx(r.impact(res["water"], std, api.A))
 
 
 def test_generate_falls_back_with_notice_after_bad_output():

@@ -6,6 +6,8 @@ Listens on 127.0.0.1, so nothing outside this laptop can reach it.
 GET  /api/options   inputs, limits, installed models, method details and every data table
 POST /api/plan      engine results, Sareef, community and the template plan (instant)
 POST /api/generate  the same request plus "model": asks the local model, falls back to the template
+POST /api/garden    the same request plus garden size, wishes and an optional model: a garden checked against
+                    the household's water in every month (built-in garden when no model is given)
 """
 import json
 import os
@@ -18,6 +20,7 @@ import ramadi as r
 
 RAIN, SHARES, CATALOG, PLANTS, ASSUMPTIONS = r.load_tables()
 A = r.assumption_values(ASSUMPTIONS)
+GARDEN = r.load_garden(RAIN, PLANTS)
 RAIN_MM = dict(zip(RAIN["governorate"], RAIN["annual_mm"].astype(float)))
 PLANT_NAMES = PLANTS.set_index("plant_id")
 BUDGETS = ["low", "full"]
@@ -57,6 +60,12 @@ class GenerateRequest(PlanRequest):
     model: str = Field(min_length=1)
 
 
+class GardenRequest(PlanRequest):
+    garden_m2: float = Field(40, gt=0, le=r.GARDEN_M2_MAX)
+    wishes: str = Field("", max_length=r.WISHES_MAX)
+    model: str = ""  # empty: the built-in garden, instantly
+
+
 def _records(df):
     return df.to_dict("records")
 
@@ -69,6 +78,7 @@ def options():
         "years": list(r.YEARS),
         "models": r.list_models(),
         "community_max": r.COMMUNITY_MAX_HOMES,
+        "garden": {"garden_m2": [1, r.GARDEN_M2_MAX], "wishes_max": r.WISHES_MAX, "count_max": r.GARDEN_COUNT_MAX},
         "method": {
             "warnings": r.WARNINGS,
             "banned_terms": r.BANNED_TERMS,
@@ -85,6 +95,8 @@ def options():
             "monthly_share": _records(r.read_table("monthly_share.csv")),
             "catalog": _records(CATALOG),
             "plants": _records(PLANTS),
+            "garden_plants": _records(GARDEN.plants.reset_index().drop(columns=["name_en", "name_ar"])),
+            "et0": _records(GARDEN.et0.reset_index()),
         },
     }
 
@@ -155,7 +167,46 @@ def generate(req: GenerateRequest, chat=None):
                          req.budget)}
 
 
-ROUTES = {"/api/plan": (PlanRequest, plan), "/api/generate": (GenerateRequest, generate)}
+def _weekly(series):
+    return [r.per_week(v, m) for m, v in enumerate(series)]
+
+
+def garden(req: GardenRequest, chat=None):
+    """Garden for this household's water: the model's design when one is asked for and passes, else the built-in one."""
+    profile, res = _profile(req)
+    ctx = r.garden_context(profile, res, SHARES, A, GARDEN, req.garden_m2)
+    gen = r.generate_garden(ctx, GARDEN, PLANTS, req.lang, req.model, req.wishes, chat=chat)
+    plan = gen.plan
+    name_col = "name_ar" if req.lang == "ar" else "name_en"
+    rows = []
+    for p in plan.plants:
+        row = GARDEN.plants.loc[p.plant_id]
+        need = _weekly(ctx["need"][p.plant_id])
+        rows.append({"plant_id": p.plant_id, "name": row[name_col], "kind": row["kind"], "count": p.count,
+                     "reason": p.reason, "canopy_m2": p.count * float(row["canopy_m2"]),
+                     "peak_l_week": p.count * max(need), "status": row["status"],
+                     "salt_note": r.SALT_NOTE[req.lang] if row["salt"] in r.SALT_SENSITIVE else None})
+    return {
+        "model": req.model,
+        "source": gen.source,
+        "trace": gen.trace,
+        "notice": r.garden_notice(gen, req.model, req.lang),
+        "language": plan.language,
+        "summary": plan.summary,
+        "care_steps": plan.care_steps,
+        "plants": rows,
+        "garden_m2": ctx["garden_m2"],
+        "area_used": r.garden_area(plan.plants, GARDEN),
+        "supply_l_week": _weekly(ctx["supply"]),
+        "demand_l_week": _weekly(r.garden_demand(plan.plants, ctx)),
+        "checks": [{"rule": rule, "passed": ok} for rule, ok in r.garden_checks(plan, ctx, GARDEN)],
+        "warnings": [r.WARNINGS[req.lang][i] for i in r.GARDEN_WARNINGS],
+        "prompt": r.build_garden_prompt(ctx, GARDEN, req.lang, req.wishes),
+    }
+
+
+ROUTES = {"/api/plan": (PlanRequest, plan), "/api/generate": (GenerateRequest, generate),
+          "/api/garden": (GardenRequest, garden)}
 
 
 class Handler(BaseHTTPRequestHandler):

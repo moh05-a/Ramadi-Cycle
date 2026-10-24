@@ -6,7 +6,7 @@ import { href, type Route } from "./router";
 import type { Theme } from "./theme";
 import { PAGES_ORDER, SHELL, type Page } from "./v5copy";
 
-const ROUTE_OF: Record<Page, Route> = { home: "home", save: "save", plan: "plan", calc: "calc" };
+const ROUTE_OF: Record<Page, Route> = { home: "home", garden: "garden", save: "save", plan: "plan", calc: "calc" };
 const RAY_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 
 type Props = { lang: Lang; setLang: (l: Lang) => void; theme: Theme; toggleTheme: () => void; page: Page };

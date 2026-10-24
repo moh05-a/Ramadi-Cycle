@@ -56,6 +56,8 @@ Tests never touch a real model or the network: Ollama is replaced by fakes, and 
 
 Python calculates every number, price and safety rule. The local model only picks parts from `data/catalog.csv` and writes the steps. Its JSON is validated against a schema; unknown parts, raw-eaten plants, bad quantities or banned terms get it rejected. After two failed retries the app shows the template plan and says so.
 
+**Garden planner (the AI centrepiece).** The household's greywater, plus rain-tank overflow in winter, sets a water budget for every month. A local model reads what the family wants from the garden, in English or Arabic, and picks plants and counts from `data/garden_plants.csv`. Code then works out what each plant needs each month (FAO-56: ET₀ × Kc × canopy, less effective rain, over drip efficiency) and rejects any garden that runs dry in a month, doesn't fit the space, uses a plant that can't take greywater, or contains banned words. The reason goes back to the model so it can fix the plan, up to three attempts; after that the built-in garden is shown. Monthly ET₀ per governorate (`data/et0.csv`) comes from NASA POWER daily weather via `scripts/fetch_climate.py`.
+
 | File | What's in it |
 | --- | --- |
 | `ramadi.py` | Water-balance engine, schema, safety rules, Ollama call, template plan |

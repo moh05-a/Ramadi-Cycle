@@ -1,0 +1,14 @@
+governorate,Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec,source,status
+Amman (west),55.0,64.9,103.9,142.8,196.6,225.7,242.2,221.8,174.4,130.9,87.8,61.2,FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py),sourced
+Amman (east),54.0,65.3,106.1,148.0,203.2,235.6,252.2,228.9,179.0,136.6,88.9,60.0,FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py),sourced
+Zarqa,53.3,64.2,104.7,146.2,202.6,236.0,253.7,230.1,178.9,135.9,88.1,59.4,FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py),sourced
+Irbid,40.0,49.6,84.5,118.2,162.8,188.9,203.9,187.8,146.3,105.4,64.8,43.2,FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py),sourced
+Ajloun,40.3,49.8,84.6,118.2,162.8,188.8,203.9,187.8,146.4,105.6,65.1,43.5,FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py),sourced
+Jerash,40.3,49.8,84.6,118.2,162.8,188.8,203.9,187.8,146.5,105.7,65.2,43.5,FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py),sourced
+Balqa (Salt),54.9,64.9,103.9,142.8,196.6,225.7,242.2,221.8,174.3,130.9,87.8,61.1,FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py),sourced
+Madaba,63.8,75.4,117.4,159.5,213.5,235.7,246.9,225.5,179.5,139.3,97.3,69.5,FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py),sourced
+Mafraq,53.2,63.1,103.0,145.0,200.7,228.6,243.3,221.2,173.9,133.4,87.0,59.6,FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py),sourced
+Karak,64.3,75.7,117.6,159.6,213.5,235.6,246.9,225.6,179.7,139.8,97.9,70.1,FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py),sourced
+Tafilah,64.6,76.3,117.1,157.9,205.0,224.1,232.3,210.7,168.1,135.1,97.3,70.6,FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py),sourced
+Ma'an,57.2,72.0,118.4,164.3,216.2,240.6,250.1,230.4,181.8,135.7,84.6,59.7,FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py),sourced
+Aqaba,74.2,90.2,142.3,185.8,233.9,256.6,262.9,246.8,199.2,149.2,100.9,76.5,FAO-56 Penman-Monteith on NASA POWER daily weather 1991-2020 (scripts/fetch_climate.py),sourced

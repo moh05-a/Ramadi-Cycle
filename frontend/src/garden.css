@@ -1,0 +1,49 @@
+/* Garden page. Brand-kit tokens only: olive for plants and passed checks, cistern for water, rust never (safety only). */
+
+.gd-form { display: grid; grid-template-columns: minmax(0, 220px) minmax(0, 1fr); gap: var(--rc-space-6); align-items: start; }
+.gd-wishes textarea {
+  font: inherit; font-size: 1rem; line-height: 1.5; padding: 12px 14px; resize: vertical; min-height: 88px;
+  color: var(--rc-ink); background: var(--rc-paper); border: 1px solid var(--rc-stone); border-radius: var(--rc-radius);
+}
+.gd-wishes textarea:focus-visible { outline: 3px solid var(--rc-cistern); outline-offset: 1px; }
+
+.gd-result { padding: 24px 28px 28px; display: grid; gap: var(--rc-space-6); }
+.gd-result > * { min-width: 0; }
+.gd-verdict { display: flex; flex-wrap: wrap; align-items: center; gap: var(--rc-space-3) var(--rc-space-6); }
+.gd-pill { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border: 1px solid currentColor; border-radius: 999px; font-weight: 600; font-size: 0.9375rem; }
+.gd-pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.gd-pill.is-ok { color: var(--rc-olive); }
+.gd-pill.is-short { color: var(--rc-stone); }
+.gd-area { color: var(--rc-stone); font-size: 0.9375rem; }
+.gd-summary { font-size: 1.1875rem; text-wrap: pretty; }
+
+.gd-plants { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); gap: var(--rc-space-3); }
+.gd-plant { display: grid; gap: 4px; align-content: start; padding: 14px 16px; border: 1px solid var(--rc-rule); border-block-start: 3px solid var(--rc-olive); background: var(--rc-paper); }
+.gd-plant.is-shrub, .gd-plant.is-climber { border-block-start-color: var(--rc-stone); }
+.gd-plant__head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--rc-space-3); }
+.gd-plant__count { color: var(--rc-stone); font-weight: 600; white-space: nowrap; }
+.gd-plant p { font-size: 0.9375rem; }
+.gd-plant__water { font-size: 0.875rem; color: var(--rc-cistern); }
+.gd-plant__salt { font-size: 0.8125rem; color: var(--rc-stone); }
+
+.gd-chart { margin: 0; display: grid; gap: var(--rc-space-2); }
+.gd-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.875rem; color: var(--rc-stone); align-items: center; }
+.gd-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.gd-legend__bar { width: 12px; height: 12px; background: var(--rc-olive); }
+.gd-legend__line { width: 16px; height: 0; border-block-start: 2px solid var(--rc-cistern); }
+.gd-legend__unit { margin-inline-start: auto; }
+.gd-bar { fill: var(--rc-olive); opacity: 0.85; }
+.gd-bar.is-short { fill: var(--rc-bought); }
+.gd-line { fill: none; stroke: var(--rc-cistern); stroke-width: 2; }
+.gd-dot { fill: var(--rc-cistern); }
+
+.gd-trace ol, .gd-care ol { margin: var(--rc-space-2) 0 0; padding-inline-start: 1.4em; display: grid; gap: 6px; }
+.gd-trace li { font-size: 0.9375rem; color: var(--rc-stone); }
+.gd-trace li b { color: var(--rc-ink); }
+.gd-trace li.is-passed { color: var(--rc-olive); }
+.gd-trace li.is-passed b { color: var(--rc-olive); }
+
+@media (max-width: 640px) {
+  .gd-form { grid-template-columns: minmax(0, 1fr); }
+  .gd-result { padding-inline: var(--rc-space-4); }
+}

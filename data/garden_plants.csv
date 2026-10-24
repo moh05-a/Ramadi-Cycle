@@ -1,0 +1,13 @@
+plant_id,kind,kc_ini,kc_mid,kc_end,deciduous,canopy_m2,salt,source,status
+olive,tree,0.65,0.70,0.70,false,12.6,moderately tolerant,"Kc: FAO-56 Table 12 (olives, 40-60% canopy cover). Salt: FAO-29 Table 4. Canopy: pruned home tree about 4 m across (estimate)",sourced
+lemon,tree,0.70,0.65,0.70,false,7.1,sensitive,"Kc: FAO-56 Table 12 (citrus, no ground cover). Salt: FAO-29 Table 4. Canopy: about 3 m across (estimate)",sourced
+grape,climber,0.30,0.85,0.45,true,6.0,moderately sensitive,"Kc: FAO-56 Table 12 (table grapes). Salt: FAO-29 Table 4. Canopy: one vine on a 2 x 3 m arbour (estimate)",sourced
+almond,tree,0.40,0.90,0.65,true,12.6,sensitive,"Kc: FAO-56 Table 12 (almonds, no ground cover). Salt: FAO-29 Table 4. Canopy: about 4 m across (estimate)",sourced
+apricot,tree,0.55,0.90,0.65,true,12.6,sensitive,"Kc: FAO-56 Table 12 (apricots and stone fruit, no ground cover). Salt: FAO-29 Table 4. Canopy: about 4 m across (estimate)",sourced
+date_palm,tree,0.90,0.95,0.95,false,12.6,tolerant,"Kc: FAO-56 Table 12 (date palms). Salt: FAO-29 Table 4. Canopy: about 4 m across (estimate)",sourced
+pistachio,tree,0.40,1.10,0.45,true,12.6,tolerant,"Kc: FAO-56 Table 12 (pistachios, no ground cover). Salt: tolerant (FAO-29 lists no value; estimate). Canopy: about 4 m across (estimate)",sourced
+fig,tree,0.55,0.75,0.65,true,12.6,moderately tolerant,"Kc: not in FAO-56; estimate near stone fruit. Salt: FAO-29 Table 4. Canopy: about 4 m across (estimate)",estimate
+pomegranate,tree,0.50,0.70,0.60,true,7.1,moderately tolerant,"Kc: not in FAO-56; estimate near olive. Salt: FAO-29 Table 4. Canopy: about 3 m across (estimate)",estimate
+rosemary,shrub,0.20,0.20,0.20,false,1.0,moderately tolerant,"Kc: WUCOLS 'low' water-use class (0.1-0.3), mid value. Salt and canopy: estimate",estimate
+lavender,shrub,0.20,0.20,0.20,false,0.5,moderately tolerant,"Kc: WUCOLS 'low' water-use class (0.1-0.3), mid value. Salt and canopy: estimate",estimate
+bougainvillea,climber,0.20,0.20,0.20,false,4.0,moderately tolerant,"Kc: WUCOLS 'low' water-use class (0.1-0.3), mid value. Salt and canopy: estimate",estimate

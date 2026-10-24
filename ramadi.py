@@ -36,9 +36,13 @@ COLUMNS = {
     "plants.csv": {"plant_id": "text", "name_en": "text", "name_ar": "text", "greywater_ok": "bool", "note": "text",
                    "source": "text", "status": "text"},
     "assumptions.csv": {"parameter": "text", "value": "num", "unit": "text", "source": "text", "status": "text"},
+    "et0.csv": {"governorate": "text", **{m: "num" for m in MONTHS}, "source": "text", "status": "text"},
+    "garden_plants.csv": {"plant_id": "text", "kind": "text", "kc_ini": "num", "kc_mid": "num", "kc_end": "num",
+                          "deciduous": "bool", "canopy_m2": "num", "salt": "text", "source": "text", "status": "text"},
 }
 KEYS = {"rainfall.csv": "governorate", "monthly_share.csv": "month", "catalog.csv": "item_id",
-        "plants.csv": "plant_id", "assumptions.csv": "parameter"}
+        "plants.csv": "plant_id", "assumptions.csv": "parameter", "et0.csv": "governorate",
+        "garden_plants.csv": "plant_id"}
 SHARE_TOLERANCE = 1e-6
 BUDGETS = ("low", "full")
 YEARS = ("dry", "average", "wet")
@@ -400,16 +404,24 @@ def budget_cap(a, budget):
     return a.get(f"budget_cap_{budget}_jod")
 
 
+def parse_reply(raw):
+    """Model reply text to a Python object. Returns (obj, None) or (None, Rejection). Non-text passes through."""
+    if not isinstance(raw, (str, bytes)):
+        return raw, None
+    text = clean_model_text(raw.decode("utf-8", "replace") if isinstance(raw, bytes) else raw)
+    if not text:
+        return None, Rejection(EMPTY_RESPONSE)
+    try:
+        return json.loads(text), None
+    except json.JSONDecodeError as e:
+        return None, Rejection(NOT_JSON, e.msg)
+
+
 def validate(raw, catalog, plants, budget, lang=None, max_total_jod=None, profile=None):
     """Parse and check model output. Returns (Blueprint, None) or (None, Rejection)."""
-    if isinstance(raw, (str, bytes)):
-        text = clean_model_text(raw.decode("utf-8", "replace") if isinstance(raw, bytes) else raw)
-        if not text:
-            return None, Rejection(EMPTY_RESPONSE)
-        try:
-            raw = json.loads(text)
-        except json.JSONDecodeError as e:
-            return None, Rejection(NOT_JSON, e.msg)
+    raw, why = parse_reply(raw)
+    if why:
+        return None, why
     try:
         bp = Blueprint.model_validate(raw)
     except ValidationError as e:
@@ -609,9 +621,10 @@ def list_models():
     return local + openrouter_models()
 
 
-def ollama_chat(model, prompt):
-    """One non-streaming chat call. Returns the reply text or raises a ModelError subclass."""
-    body = json.dumps({"model": model, "stream": False, "format": Blueprint.model_json_schema(),
+def ollama_chat(model, prompt, schema=None):
+    """One non-streaming chat call constrained to schema (default: Blueprint). Returns the reply text or raises
+    a ModelError subclass."""
+    body = json.dumps({"model": model, "stream": False, "format": schema or Blueprint.model_json_schema(),
                        "options": MODEL_OPTIONS,
                        "messages": [{"role": "user", "content": prompt}]}).encode()
     req = urllib.request.Request(f"{OLLAMA_URL}/api/chat", body, {"Content-Type": "application/json"})
@@ -674,18 +687,20 @@ def openrouter_models():
     return [OPENROUTER_PREFIX + m for m in ids]
 
 
-def openrouter_chat(model, prompt):
-    """One chat call to OpenRouter. Returns the reply text or raises a ModelError subclass."""
+def openrouter_chat(model, prompt, schema=None):
+    """One chat call to OpenRouter constrained to schema (default: Blueprint). Returns the reply text or raises
+    a ModelError subclass."""
     key = os.environ.get("OPENROUTER_API_KEY")
     if not key:
         raise ModelUnavailable("OPENROUTER_API_KEY is not set")
-    schema = Blueprint.model_json_schema()
+    schema = schema or Blueprint.model_json_schema()
     body = json.dumps({
         "model": model.removeprefix(OPENROUTER_PREFIX),
         **MODEL_OPTIONS,
         "messages": [{"role": "system", "content": "Reply with one JSON object matching this JSON schema:\n" + json.dumps(schema)},
                      {"role": "user", "content": prompt}],
-        "response_format": {"type": "json_schema", "json_schema": {"name": "blueprint", "strict": True, "schema": schema}},
+        "response_format": {"type": "json_schema",
+                            "json_schema": {"name": schema.get("title", "blueprint").lower(), "strict": True, "schema": schema}},
     }).encode()
     req = urllib.request.Request(OPENROUTER_URL, body, {
         "Content-Type": "application/json", "Authorization": f"Bearer {key}",
@@ -818,3 +833,283 @@ def to_markdown(bp, bom, profile, result):
     if lang == "ar":  # blank lines keep the Markdown inside the block rendered
         lines = ['<div dir="rtl" lang="ar">', ""] + lines + ["</div>", ""]
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------- garden planner
+
+# The model designs the garden; code works out every litre. Garden water is greywater (every day) plus rain-tank
+# overflow (winter). A mature plant needs (ET0 × Kc − effective rain) × canopy ÷ drip efficiency each month, and a
+# plan passes only if that fits the water in every month and the plants fit the garden.
+GARDEN_COUNT_MAX = 20
+GARDEN_M2_MAX = 1000
+GARDEN_STEPS_MIN, GARDEN_STEPS_MAX = 3, 5
+WISHES_MAX = 300
+SALT_SENSITIVE = {"sensitive", "moderately sensitive"}
+GARDEN_WARNINGS = [0, 1, 2, 3]  # the greywater rules from WARNINGS
+
+GARDEN_SHORT = "garden_short"
+GARDEN_TOO_BIG = "garden_too_big"
+EMPTY_GARDEN = "empty_garden"
+DUPLICATE_PLANT = "duplicate_plant"
+
+
+class Garden(NamedTuple):
+    et0: pd.DataFrame     # et0.csv indexed by governorate: mm per month
+    plants: pd.DataFrame  # garden_plants.csv indexed by plant_id, with name_en and name_ar from plants.csv
+
+
+def load_garden(rain, plants, data_dir=DATA):
+    """Load and cross-check the garden tables against rainfall.csv and plants.csv."""
+    et0 = read_table("et0.csv", data_dir).set_index("governorate")
+    if missing := sorted(set(rain["governorate"]) - set(et0.index)):
+        raise DataError(f"et0.csv: no row for {', '.join(missing)}")
+    gp = read_table("garden_plants.csv", data_dir).set_index("plant_id")
+    names = plants.set_index("plant_id")
+    if unknown := sorted(set(gp.index) - set(names.index)):
+        raise DataError(f"garden_plants.csv: {', '.join(unknown)} not in plants.csv")
+    if unsafe := sorted(p for p in gp.index if not names.at[p, "greywater_ok"]):
+        raise DataError(f"garden_plants.csv: {', '.join(unsafe)} not greywater-safe in plants.csv")
+    return Garden(et0, gp.join(names[["name_en", "name_ar"]]))
+
+
+def kc_by_month(row):
+    """Simplified FAO-56 crop curve: kc_ini in Mar-Apr, kc_mid in May-Aug, kc_end in Sep-Oct. Over winter
+    evergreens stay at kc_ini and deciduous plants are bare (0) from December to February."""
+    winter = 0.0 if row["deciduous"] else row["kc_ini"]
+    nov = row["kc_end"] if row["deciduous"] else row["kc_ini"]
+    return [winter, winter, row["kc_ini"], row["kc_ini"], *[row["kc_mid"]] * 4, row["kc_end"], row["kc_end"], nov, winter]
+
+
+def effective_rain(p_mm):
+    """Share of a month's rain plants can use, in mm: FAO/AGLW dependable-rain formula (Smith 1992, CROPWAT)."""
+    return max(0.0, 0.6 * p_mm - 10) if p_mm <= 70 else 0.8 * p_mm - 24
+
+
+def plant_need(row, et0, rain_mm, drip):
+    """Litres one mature plant needs from the drip line each month. 1 mm on 1 m² is 1 L."""
+    return [max(0.0, e * kc - effective_rain(p)) * row["canopy_m2"] / drip
+            for e, kc, p in zip(et0, kc_by_month(row), rain_mm, strict=True)]
+
+
+def per_week(litres, month):
+    """A month's litres as litres per week."""
+    return litres / DAYS_IN_MONTH[month] * 7
+
+
+def garden_context(profile, result, shares, a, garden, garden_m2):
+    """Everything code knows about one garden: litres available and litres each plant needs, per month."""
+    if isinstance(garden_m2, bool) or not 0 < garden_m2 <= GARDEN_M2_MAX:
+        raise InputError(f"garden_m2: must be above 0 and at most {GARDEN_M2_MAX}")
+    drip = a.get("drip_efficiency")
+    if drip is None or not 0 < drip <= 1:
+        raise DataError("assumptions.csv: drip_efficiency must be a fraction above 0")
+    k = a[f"year_multiplier_{profile['year']}"]
+    rain_mm = [profile["rain_mm"] * s * k for s in shares]
+    et0 = garden.et0.loc[profile["governorate"], MONTHS].astype(float).tolist()
+    grey_day = result["greywater"] / WEEKS_PER_YEAR / 7 * LITRES_PER_M3
+    supply = [grey_day * d + o * LITRES_PER_M3 for d, o in zip(DAYS_IN_MONTH, result["balance"]["overflow"])]
+    need = {pid: plant_need(row, et0, rain_mm, drip) for pid, row in garden.plants.iterrows()}
+    return {"garden_m2": float(garden_m2), "supply": supply, "need": need, "et0": et0, "rain_mm": rain_mm}
+
+
+def garden_demand(picks, ctx):
+    """Litres per month for a list of (plant_id, count) or GardenPick."""
+    pairs = [(p.plant_id, p.count) if isinstance(p, GardenPick) else p for p in picks]
+    return [sum(n * ctx["need"][pid][m] for pid, n in pairs) for m in range(len(MONTHS))]
+
+
+def garden_area(picks, garden):
+    pairs = [(p.plant_id, p.count) if isinstance(p, GardenPick) else p for p in picks]
+    return sum(n * float(garden.plants.at[pid, "canopy_m2"]) for pid, n in pairs)
+
+
+def short_months(demand, supply):
+    return [m for m in range(len(MONTHS)) if demand[m] > supply[m] + 1e-9]
+
+
+class GardenPick(BaseModel):
+    model_config = STRICT
+    plant_id: str
+    count: int = Field(ge=1, le=GARDEN_COUNT_MAX)
+    reason: str = Field(max_length=REASON_MAX)
+
+
+class GardenPlan(BaseModel):
+    model_config = STRICT
+    language: Literal["en", "ar"]
+    summary: str = Field(min_length=1)
+    plants: list[GardenPick]
+    care_steps: list[str] = Field(min_length=GARDEN_STEPS_MIN, max_length=GARDEN_STEPS_MAX)
+
+
+def validate_garden(raw, ctx, garden, plants, lang=None):
+    """Parse and check a garden plan. Returns (GardenPlan, None) or (None, Rejection).
+
+    Rejection details are written for the model: generate_garden sends the last one back so it can fix the plan.
+    """
+    raw, why = parse_reply(raw)
+    if why:
+        return None, why
+    try:
+        plan = GardenPlan.model_validate(raw)
+    except ValidationError as e:
+        errs = e.errors()
+        q = next((err for err in errs if "count" in err["loc"]), None)
+        if q:
+            return None, Rejection(BAD_QUANTITY, f"count must be 1 to {GARDEN_COUNT_MAX}")
+        return None, Rejection(SCHEMA, f"{'.'.join(map(str, errs[0]['loc']))}: {errs[0]['msg']}")
+    if lang and plan.language != lang:
+        return None, Rejection(WRONG_LANGUAGE, f"write in {lang}, not {plan.language}")
+    if not plan.plants:
+        return None, Rejection(EMPTY_GARDEN, "choose at least one plant")
+    seen = set()
+    unsafe = set(plants.loc[~plants["greywater_ok"], "plant_id"])
+    for p in plan.plants:
+        if p.plant_id in seen:
+            return None, Rejection(DUPLICATE_PLANT, f"{p.plant_id} is listed twice; give it one count")
+        seen.add(p.plant_id)
+        if p.plant_id in unsafe:
+            return None, Rejection(PLANT_NOT_GREYWATER_SAFE, f"{p.plant_id} is eaten raw and cannot take greywater")
+        if p.plant_id not in garden.plants.index:
+            return None, Rejection(UNKNOWN_PLANT, f"{p.plant_id} is not on the plant list")
+    if (area := garden_area(plan.plants, garden)) > ctx["garden_m2"]:
+        return None, Rejection(GARDEN_TOO_BIG, f"the plants cover {area:.0f} m² but the garden is {ctx['garden_m2']:.0f} m²")
+    demand = garden_demand(plan.plants, ctx)
+    if short := short_months(demand, ctx["supply"]):
+        m = max(short, key=lambda i: demand[i] - ctx["supply"][i])
+        return None, Rejection(GARDEN_SHORT, f"{MONTHS[m]} needs {per_week(demand[m], m):.0f} L/week but only "
+                                             f"{per_week(ctx['supply'][m], m):.0f} L/week is available")
+    text = " \n ".join([plan.summary, *plan.care_steps, *(p.reason for p in plan.plants)])
+    if term := find_banned(text):
+        return None, Rejection(BANNED_TERM, f"do not mention '{term}'")
+    if (share := foreign_share(text, plan.language)) > SCRIPT_MAX_FOREIGN:
+        return None, Rejection(WRONG_SCRIPT, f"{share:.0%} of letters are not {plan.language}")
+    return plan, None
+
+
+TEMPLATE_GARDEN_ORDER = ["olive", "pomegranate", "fig", "grape", "rosemary", "lavender"]
+TEMPLATE_GARDEN_CAP = {"rosemary": 4, "lavender": 4}  # a few shrubs as a border, not a garden full of them
+TEMPLATE_GARDEN_TEXT = {
+    "en": {"summary": "A starting garden that your greywater can keep alive all year, including August.",
+           "empty": "Not enough water reaches the garden in summer for any plant on the list.",
+           "reason": "Fits your summer water.",
+           "care": ["Plant in late autumn so the first rains settle the roots.",
+                    "Lay 10 cm of mulch and run the drip line under it.",
+                    "Check the drip outlets every month and clear any blockage."]},
+    "ar": {"summary": "حديقة أولى تكفيها مياهك الرمادية طوال السنة، حتى في آب.",
+           "empty": "لا يصل إلى الحديقة في الصيف ما يكفي من الماء لأي نبتة في القائمة.",
+           "reason": "تكفيها مياهك في الصيف.",
+           "care": ["ازرع في أواخر الخريف لتثبّت الأمطار الأولى الجذور.",
+                    "افرش 10 سم من الملش ومدّ خط التنقيط تحته.",
+                    "افحص نقاط التنقيط كل شهر ونظّف أي انسداد."]},
+}
+
+
+def template_garden(ctx, garden, lang):
+    """Deterministic garden: add one plant at a time, in a fixed order, while everything still fits."""
+    counts, added = {}, True
+    order = [p for p in TEMPLATE_GARDEN_ORDER if p in garden.plants.index]
+    while added:
+        added = False
+        for pid in order:
+            trial = counts | {pid: counts.get(pid, 0) + 1}
+            if trial[pid] > TEMPLATE_GARDEN_CAP.get(pid, GARDEN_COUNT_MAX):
+                continue
+            pairs = list(trial.items())
+            if garden_area(pairs, garden) <= ctx["garden_m2"] and not short_months(garden_demand(pairs, ctx), ctx["supply"]):
+                counts, added = trial, True
+    t = TEMPLATE_GARDEN_TEXT[lang]
+    return GardenPlan.model_validate({
+        "language": lang, "summary": t["summary"] if counts else t["empty"], "care_steps": t["care"],
+        "plants": [{"plant_id": pid, "count": n, "reason": t["reason"]} for pid, n in counts.items()]})
+
+
+def build_garden_prompt(ctx, garden, lang, wishes="", feedback=None):
+    """Fixed rules and plant list first, the household last; on a retry, the reason the last plan failed."""
+    rows = []
+    for pid, row in garden.plants.iterrows():
+        need = ctx["need"][pid]
+        peak = max(range(len(MONTHS)), key=lambda m: per_week(need[m], m))
+        rows.append(f"{pid}: {row['name_en']}, {row['kind']}, {row['canopy_m2']:g} m², "
+                    f"{per_week(need[peak], peak):.0f} L/week in {MONTHS[peak]}")
+    supply = ", ".join(f"{m} {per_week(v, i):.0f}" for i, (m, v) in enumerate(zip(MONTHS, ctx["supply"])))
+    language = "Modern Standard Arabic" if lang == "ar" else "plain English"
+    wishes = " ".join(wishes.split())[:WISHES_MAX] or "none given"
+    retry = f"\nYour last plan was rejected: {feedback}. Change the plan so it passes.\n" if feedback else ""
+    plant_rows = "\n".join(rows)
+    return f"""Design a home garden in Jordan watered by greywater and rain-tank overflow. Reply with compact JSON on one line, matching the schema. Set "language" to "{lang}" and write all text in {language}.
+
+Rules:
+- plants: plant_id only from the list below, each once, count 1 to {GARDEN_COUNT_MAX}.
+- In every month the plants' water must not exceed the water available. Summer is the hard limit.
+- Total canopy (count x m²) must fit the garden area.
+- Follow the household's wishes where the water allows.
+- summary: one sentence. care_steps: exactly 3, under 15 words each. Every reason: under 12 words.
+- Only say what to plant, where and how to look after it. Do not discuss water quality or safety; the app adds those.
+
+Plants (id: name, type, canopy at mature size, water in its peak month):
+{plant_rows}
+
+Garden: {ctx['garden_m2']:g} m². Water available, litres per week: {supply}.
+Wishes: {wishes}
+{retry}"""
+
+
+class GardenGeneration(NamedTuple):
+    plan: GardenPlan
+    source: Literal["model", "template"]
+    trace: list  # one dict per attempt: attempt, outcome (passed/rejected/error), code, detail
+
+
+def generate_garden(ctx, garden, plants, lang, model, wishes="", chat=None):
+    """Ask the model for a garden and check it. A rejected plan goes back to the model with the reason, up to
+    MAX_ATTEMPTS calls; transport errors stop at once. Ends in the template garden, never raises for the model."""
+    chat = chat or (openrouter_chat if is_cloud(model) else ollama_chat)
+    trace, feedback = [], None
+    if model:
+        schema = GardenPlan.model_json_schema()
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            try:
+                raw = chat(model, build_garden_prompt(ctx, garden, lang, wishes, feedback), schema)
+            except Exception as e:  # noqa: BLE001 - every failure must end in the template
+                err = as_model_error(e)
+                trace.append({"attempt": attempt, "outcome": "error", "code": err.code, "detail": str(err)})
+                log.info("garden attempt %d failed: %s", attempt, err.code)
+                if err.retry:
+                    continue
+                break
+            plan, why = validate_garden(raw, ctx, garden, plants, lang)
+            if plan:
+                trace.append({"attempt": attempt, "outcome": "passed", "code": "", "detail": ""})
+                return GardenGeneration(plan, "model", trace)
+            trace.append({"attempt": attempt, "outcome": "rejected", "code": why.code, "detail": why.detail})
+            log.info("garden attempt %d rejected: %s", attempt, why.code)
+            feedback = why.detail or why.code
+    return GardenGeneration(template_garden(ctx, garden, lang), "template", trace)
+
+
+def garden_checks(plan, ctx, garden):
+    """Checks shown on the garden badge. Returns list of (rule, passed)."""
+    demand = garden_demand(plan.plants, ctx)
+    return [
+        ("Every plant is on the greywater-safe list", all(p.plant_id in garden.plants.index for p in plan.plants)),
+        ("Plants fit the garden area", garden_area(plan.plants, garden) <= ctx["garden_m2"]),
+        ("Enough water in every month", not short_months(demand, ctx["supply"])),
+        ("No banned terms in generated text", find_banned(" ".join([plan.summary, *plan.care_steps])) is None),
+        ("Fixed warnings and disclaimer attached", bool(WARNINGS[plan.language]) and bool(DISCLAIMER[plan.language])),
+    ]
+
+
+SALT_NOTE = {"en": "Salt-sensitive: now and then water it with rain-tank water to wash laundry salts past the roots.",
+             "ar": "حساسة للملوحة: اسقها أحياناً من خزان المطر لتغسل أملاح الغسيل بعيداً عن الجذور."}
+
+
+def garden_notice(gen, model, lang):
+    """On-screen notice for the template garden, or None for a model garden."""
+    if gen.source == "model":
+        return None
+    if not model:
+        return {"en": "This is the built-in starting garden. Pick a model and describe what you want to get your own design.",
+                "ar": "هذه حديقة البداية المدمجة. اختر نموذجاً واكتب ما تريده لتحصل على تصميمك."}[lang]
+    return {"en": f"{model} could not design a garden that passed the checks, so this is the built-in starting garden.",
+            "ar": f"لم يستطع {model} تصميم حديقة تجتاز الفحوص، لذلك هذه حديقة البداية المدمجة."}[lang]

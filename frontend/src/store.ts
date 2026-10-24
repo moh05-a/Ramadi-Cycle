@@ -11,7 +11,7 @@ const INTEGER: FieldKey[] = ["people", "showers_pp", "laundry_loads"];
 const START: Record<FieldKey, string> = { roof_m2: "120", people: "5", showers_pp: "5", laundry_loads: "4", capacity_m3: "2" };
 
 /** useState that survives a reload. Storage can be missing or blocked, so every access is guarded. */
-function useStored<T>(key: string, initial: T) {
+export function useStored<T>(key: string, initial: T) {
   const [value, setValue] = useState<T>(() => {
     try {
       const raw = localStorage.getItem(key);
@@ -111,7 +111,7 @@ export function useRamadi() {
   const shown: PlanBlock | undefined = generated?.key === planKey ? generated.res : data;
 
   return {
-    lang, setLang, options, error, retry: () => setAttempt((n) => n + 1),
+    lang, setLang, options, error, retry: () => setAttempt((n) => n + 1), planKey, request,
     gov, setGov, form, setForm: (k: FieldKey, v: string) => setForm({ ...form, [k]: v }), fields,
     budget, setBudget, year, setYear, homes, setHomes,
     data, shown, isDefault: JSON.stringify(form) === JSON.stringify(START),

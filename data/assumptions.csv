@@ -17,3 +17,4 @@ greywater_recovery,0.8,fraction,Placeholder,unknown
 litres_per_shower,40,L,Placeholder,unknown
 litres_per_laundry_load,60,L,Placeholder,unknown
 sink_litres_per_person_week,20,L,Placeholder (bathroom sink only),unknown
+drip_efficiency,0.9,fraction,"Drip field application efficiency 90%; FAO Irrigation Water Management Training Manual 4 (1989)",sourced

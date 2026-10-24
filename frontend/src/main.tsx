@@ -10,5 +10,6 @@ import "@fontsource/ibm-plex-sans-arabic/600.css";
 import { App } from "./App";
 import "./app.css";
 import "./shell.css";
+import "./garden.css";
 
 createRoot(document.getElementById("root")!).render(<StrictMode><App /></StrictMode>);

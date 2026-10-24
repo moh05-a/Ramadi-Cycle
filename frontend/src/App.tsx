@@ -4,6 +4,7 @@ import { Button, Notice, Tabs, num } from "@brand";
 import { COPY } from "./copy";
 import { Assumptions, Method, detailLines } from "./calc";
 import { AIBox, Charts, Community, GovField, LinkButton, NumberField, SafetyChecks, Sareef, Steps, Warnings } from "./components";
+import { GardenPage } from "./garden";
 import { ArrowIcon, DownloadIcon, PrintIcon } from "./icons";
 import { TopBar } from "./topbar";
 import { useRoute, type Route } from "./router";
@@ -12,7 +13,7 @@ import { useTheme } from "./theme";
 import { SHELL, type Page } from "./v5copy";
 
 const PAGE_OF: Record<Route, Page> = {
-  "": "home", home: "home", save: "save", dashboard: "save", plan: "plan", calc: "calc", method: "calc", data: "calc",
+  "": "home", home: "home", garden: "garden", save: "save", dashboard: "save", plan: "plan", calc: "calc", method: "calc", data: "calc",
 };
 
 export function App() {
@@ -111,12 +112,13 @@ function HomePage({ s }: { s: Store }) {
           ))}
         </fieldset>
       </div>
-      <Next to="save">{sh.goSave}</Next>
+      <Next to="garden">{sh.goGarden}</Next>
     </section>
   );
 }
 
 function Results({ page, s }: { page: Page; s: Store }) {
+  if (page === "garden") return <GardenPage s={s} />;
   if (page === "save") return <SavePage s={s} />;
   if (page === "plan") return <PlanPage s={s} />;
   return <CalcPage s={s} />;

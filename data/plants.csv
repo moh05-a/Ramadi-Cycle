@@ -12,3 +12,7 @@ parsley,Parsley,بقدونس,false,Leaves eaten raw; use rain or mains water,Not
 lettuce,Lettuce,خس,false,Leaves eaten raw; use rain or mains water,Not recorded; needs an agronomy or health source,unverified
 thyme,Thyme (za'atar),زعتر,false,Leaves eaten raw; use rain or mains water,Not recorded; needs an agronomy or health source,unverified
 radish,Radish,فجل,false,Root eaten raw; use rain or mains water,Not recorded; needs an agronomy or health source,unverified
+almond,Almond tree,شجرة لوز,true,Drip under mulch; nuts are shelled before eating,Not recorded; needs an agronomy or health source,unverified
+apricot,Apricot tree,شجرة مشمش,true,Drip under mulch; keep water off fruit,Not recorded; needs an agronomy or health source,unverified
+date_palm,Date palm,نخلة,true,Drip at the base; fruit grows high above the water,Not recorded; needs an agronomy or health source,unverified
+pistachio,Pistachio tree,شجرة فستق حلبي,true,Drip under mulch; nuts are shelled before eating,Not recorded; needs an agronomy or health source,unverified

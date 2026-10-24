@@ -4,7 +4,7 @@ import type { Lang } from "@brand";
 export type Budget = "low" | "full";
 export type Year = "dry" | "average" | "wet";
 export type FieldKey = "roof_m2" | "people" | "showers_pp" | "laundry_loads" | "capacity_m3";
-export type TableKey = "assumptions" | "rainfall" | "monthly_share" | "catalog" | "plants";
+export type TableKey = "assumptions" | "rainfall" | "monthly_share" | "catalog" | "plants" | "garden_plants" | "et0";
 type Row = Record<string, string | number | boolean>;
 
 export type Options = {
@@ -14,6 +14,7 @@ export type Options = {
   years: Year[];
   models: string[];
   community_max: number;
+  garden: { garden_m2: [number, number]; wishes_max: number; count_max: number };
   method: {
     warnings: Record<Lang, string[]>;
     banned_terms: string[];
@@ -70,6 +71,30 @@ export type PlanResponse = PlanBlock & {
 
 export type GenerateResponse = PlanBlock & { model: string };
 
+export type GardenRequest = PlanRequest & { garden_m2: number; wishes: string; model: string };
+export type GardenTrace = { attempt: number; outcome: "passed" | "rejected" | "error"; code: string; detail: string };
+export type GardenPlant = {
+  plant_id: string; name: string; kind: string; count: number; reason: string;
+  canopy_m2: number; peak_l_week: number; status: string; salt_note: string | null;
+};
+export type GardenResponse = {
+  model: string;
+  source: "template" | "model";
+  trace: GardenTrace[];
+  notice: string | null;
+  language: Lang;
+  summary: string;
+  care_steps: string[];
+  plants: GardenPlant[];
+  garden_m2: number;
+  area_used: number;
+  supply_l_week: number[];
+  demand_l_week: number[];
+  checks: { rule: string; passed: boolean }[];
+  warnings: string[];
+  prompt: string;
+};
+
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init);
   const body = await res.json().catch(() => ({}));
@@ -84,3 +109,4 @@ export const getOptions = () => call<Options>("/api/options");
 export const getPlan = (req: PlanRequest, signal?: AbortSignal) => post<PlanResponse>("/api/plan", req, signal);
 export const generatePlan = (req: PlanRequest & { model: string }, signal?: AbortSignal) =>
   post<GenerateResponse>("/api/generate", req, signal);
+export const getGarden = (req: GardenRequest, signal?: AbortSignal) => post<GardenResponse>("/api/garden", req, signal);

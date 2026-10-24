@@ -5,7 +5,7 @@ Code owns every number, price and safety rule. The model only picks catalog IDs 
 import json
 import urllib.request
 from pathlib import Path
-from typing import Literal
+from typing import Literal, NamedTuple
 
 import pandas as pd
 from pydantic import BaseModel, Field, ValidationError
@@ -17,17 +17,104 @@ MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", 
 
 # ---------------------------------------------------------------- data
 
-def load_tables():
-    rain = pd.read_csv(DATA / "rainfall.csv")
-    shares = pd.read_csv(DATA / "monthly_share.csv").set_index("month").loc[MONTHS, "share_of_annual_rain"].tolist()
-    catalog = pd.read_csv(DATA / "catalog.csv")
-    plants = pd.read_csv(DATA / "plants.csv")
-    assumptions = pd.read_csv(DATA / "assumptions.csv")
-    return rain, shares, catalog, plants, assumptions
+class DataError(ValueError):
+    """A table in data/ is missing a column, has a bad value, or is inconsistent."""
+
+
+# Required columns per table: "num" must parse as a non-negative number, "bool" as true/false, "text" non-empty.
+COLUMNS = {
+    "rainfall.csv": {"governorate": "text", "annual_mm": "num", "source": "text", "status": "text"},
+    "monthly_share.csv": {"month": "text", "share_of_annual_rain": "num", "source": "text", "status": "text"},
+    "catalog.csv": {"item_id": "text", "name_en": "text", "name_ar": "text", "category": "text", "unit": "text",
+                    "price_jod": "num", "budget_level": "text", "source": "text", "status": "text"},
+    "plants.csv": {"plant_id": "text", "name_en": "text", "name_ar": "text", "greywater_ok": "bool", "note": "text",
+                   "source": "text", "status": "text"},
+    "assumptions.csv": {"parameter": "text", "value": "num", "unit": "text", "source": "text", "status": "text"},
+}
+KEYS = {"rainfall.csv": "governorate", "monthly_share.csv": "month", "catalog.csv": "item_id",
+        "plants.csv": "plant_id", "assumptions.csv": "parameter"}
+SHARE_TOLERANCE = 1e-6
+BUDGETS = ("low", "full")
+YEARS = ("dry", "average", "wet")
+FRACTIONS = ["runoff_coefficient", "first_flush_loss", "tanker_share", "greywater_recovery"]
+PARAMETERS = FRACTIONS + [f"year_multiplier_{y}" for y in YEARS] + [
+    "nonpotable_litres_per_person_day", "tanker_volume", "tanker_price", "municipal_tariff", "diesel_per_trip",
+    "diesel_co2", "pump_energy", "grid_co2", "litres_per_shower", "litres_per_laundry_load",
+    "sink_litres_per_person_week"]
+
+
+class Tables(NamedTuple):
+    rain: pd.DataFrame
+    shares: list
+    catalog: pd.DataFrame
+    plants: pd.DataFrame
+    assumptions: pd.DataFrame
+
+
+def read_table(name, data_dir=DATA):
+    """Read one CSV and check its columns and types. Raises DataError naming the file, column and row."""
+    try:
+        df = pd.read_csv(data_dir / name, dtype=str, keep_default_na=False, encoding="utf-8")
+    except (OSError, pd.errors.ParserError, UnicodeDecodeError) as e:
+        raise DataError(f"{name}: cannot read ({e})") from e
+    missing = [c for c in COLUMNS[name] if c not in df.columns]
+    if missing:
+        raise DataError(f"{name}: missing column(s) {', '.join(missing)}")
+    if df.empty:
+        raise DataError(f"{name}: no rows")
+    for col, kind in COLUMNS[name].items():
+        cells = df[col].str.strip()
+        if kind == "text":
+            bad = cells == ""
+        elif kind == "bool":
+            bad = ~cells.str.lower().isin(["true", "false"])
+            df[col] = cells.str.lower() == "true"
+        else:
+            nums = pd.to_numeric(cells, errors="coerce")
+            bad = nums.isna() | (nums < 0)
+            df[col] = nums.astype(float)
+        if bad.any():
+            row = int(bad.to_numpy().nonzero()[0][0]) + 2  # +1 header, +1 one-based
+            raise DataError(f"{name}: bad value in column '{col}' on line {row} (expected {kind})")
+    dupes = df[KEYS[name]][df[KEYS[name]].duplicated()].tolist()
+    if dupes:
+        raise DataError(f"{name}: duplicate {KEYS[name]} {dupes}")
+    return df
+
+
+def load_tables(data_dir=DATA):
+    """Load and cross-check every table. Fails loudly instead of letting a bad CSV reach the engine."""
+    rain = read_table("rainfall.csv", data_dir)
+    share_df = read_table("monthly_share.csv", data_dir)
+    if sorted(share_df["month"]) != sorted(MONTHS):
+        raise DataError(f"monthly_share.csv: months must be exactly {', '.join(MONTHS)}")
+    shares = share_df.set_index("month").loc[MONTHS, "share_of_annual_rain"].tolist()
+    if abs(sum(shares) - 1.0) > SHARE_TOLERANCE:
+        raise DataError(f"monthly_share.csv: shares sum to {sum(shares):.6f}, not 1.0")
+    catalog = read_table("catalog.csv", data_dir)
+    bad_levels = set(catalog["budget_level"]) - {*BUDGETS, "both"}
+    if bad_levels:
+        raise DataError(f"catalog.csv: unknown budget_level {sorted(bad_levels)}")
+    always = set(catalog.loc[catalog["budget_level"] == "both", "item_id"])
+    if missing := [i for i in REQUIRED_ITEMS if i not in always]:
+        raise DataError(f"catalog.csv: required safety item(s) {missing} missing or not budget_level 'both'")
+    plants = read_table("plants.csv", data_dir)
+    assumptions = read_table("assumptions.csv", data_dir)
+    assumption_values(assumptions)  # checks required parameters and ranges
+    return Tables(rain, shares, catalog, plants, assumptions)
 
 
 def assumption_values(assumptions):
-    return dict(zip(assumptions["parameter"], assumptions["value"].astype(float)))
+    a = dict(zip(assumptions["parameter"], assumptions["value"].astype(float)))
+    if missing := [p for p in PARAMETERS if p not in a]:
+        raise DataError(f"assumptions.csv: missing parameter(s) {', '.join(missing)}")
+    if bad := [p for p in FRACTIONS if not 0 <= a[p] <= 1]:
+        raise DataError(f"assumptions.csv: {', '.join(bad)} must be a fraction between 0 and 1")
+    if a["tanker_volume"] <= 0:
+        raise DataError("assumptions.csv: tanker_volume must be above 0")
+    if not a["year_multiplier_dry"] < a["year_multiplier_average"] < a["year_multiplier_wet"]:
+        raise DataError("assumptions.csv: year multipliers must rise from dry to average to wet")
+    return a
 
 
 # ---------------------------------------------------------------- engine

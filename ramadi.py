@@ -228,6 +228,36 @@ def simulate(profile, shares, a):
     }
 
 
+COMMUNITY_MAX_HOMES = 1000  # PRD S2
+KG_PER_TONNE = 1000
+
+
+def format_payback(months):
+    """Payback as the UI shows it: whole months, or n/a when the system saves nothing."""
+    return "n/a" if months is None else f"{months:.0f} months"
+
+
+def sareef(result, a, after=True):
+    """Sareef counter: yearly trips, JOD and kg CO₂ for the water these uses need, bought today vs with the system.
+
+    delta = now - before, so savings are negative; None when the toggle is off.
+    """
+    need = float(result["balance"]["demand"].sum() + result["greywater"])
+    keys = ("trips", "jod", "co2")
+    before = impact(need, 0, a)
+    now = impact(max(0.0, need - result["water"]), 0, a) if after else before
+    return {"before": {k: before[k] for k in keys}, "now": {k: now[k] for k in keys},
+            "delta": {k: now[k] - before[k] for k in keys} if after else None}
+
+
+def community(result, imp, homes):
+    """Scale one home's yearly results linearly to 1..COMMUNITY_MAX_HOMES homes. CO₂ in tonnes."""
+    if isinstance(homes, bool) or not isinstance(homes, int) or not 1 <= homes <= COMMUNITY_MAX_HOMES:
+        raise InputError(f"homes: must be a whole number from 1 to {COMMUNITY_MAX_HOMES}")
+    return {"homes": homes, "water": result["water"] * homes, "trips": imp["trips"] * homes,
+            "co2_t": imp["co2"] * homes / KG_PER_TONNE}
+
+
 # ---------------------------------------------------------------- blueprint schema
 
 QTY_MIN, QTY_MAX = 1, 50  # PRD M6

@@ -1,4 +1,5 @@
 """Ramadi-Cycle Streamlit interface. Run: streamlit run app.py"""
+import html
 import inspect
 
 import altair as alt
@@ -21,17 +22,20 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-rain, shares, catalog, plants, assumptions = r.load_tables()
-a = r.assumption_values(assumptions)
+try:
+    rain, shares, catalog, plants, assumptions = r.load_tables()
+    a = r.assumption_values(assumptions)
+except r.DataError as e:
+    st.error(f"Cannot start: a data file in data/ is invalid. {e}")
+    st.stop()
 
 # ---------------------------------------------------------------- sidebar
 
 with st.sidebar:
     st.image("assets/logo.svg", width=180)
     gov = st.selectbox("Governorate", rain["governorate"], index=0)
-    rain_mm = float(rain.set_index("governorate").at[gov, "annual_mm"])
     roof = st.slider("Roof area (m²)", 0, 400, 120, 10)
-    people = st.slider("People in the household", 1, 12, 5)
+    people = st.slider("People in the household", 0, 12, 5)
     showers = st.slider("Showers per person per week", 0, 14, 5)
     laundry = st.slider("Laundry loads per week", 0, 14, 4)
     capacity = st.slider("Harvest tank capacity (m³)", 0.5, 10.0, 2.0, 0.5)
@@ -45,9 +49,13 @@ with st.sidebar:
         st.caption("Ollama is not running. Blueprints use the built-in template.")
     go = st.button("Generate blueprint", type="primary", width="stretch")
 
-profile = {"governorate": gov, "rain_mm": rain_mm, "roof_m2": roof, "people": people, "showers_pp": showers,
-           "laundry_loads": laundry, "capacity_m3": capacity, "year": year}
-res = r.simulate(profile, shares, a)
+try:
+    profile = r.make_profile(rain, gov, roof, people, showers, laundry, capacity, year)
+    res = r.simulate(profile, shares, a)
+except r.InputError as e:
+    st.error(f"Check the sidebar: {e}")
+    st.stop()
+rain_mm = profile["rain_mm"]
 
 # Plan inputs that change the blueprint; a stale plan is dropped when they change.
 plan_key = (gov, roof, people, capacity, budget, lang)
@@ -55,13 +63,13 @@ if st.session_state.get("plan_key") != plan_key:
     st.session_state.pop("plan", None)
 if go:
     with st.spinner(f"Asking {model} on this laptop…" if model else "Building template plan…"):
-        bp, source, notes = r.generate(profile, res, catalog, plants, budget, lang, model)
-    st.session_state.update(plan=(bp, source, notes, model), plan_key=plan_key)
+        gen = r.generate(profile, res, catalog, plants, budget, lang, model, max_total_jod=r.budget_cap(a, budget))
+    st.session_state.update(plan=(gen.blueprint, gen.source, r.fallback_notice(gen, model), model), plan_key=plan_key)
 
 # Payback uses the generated plan if there is one, otherwise the template plan for this budget.
 plan_bp = st.session_state["plan"][0] if "plan" in st.session_state else r.template_blueprint(profile, budget, lang)
 bom = r.price(plan_bp, catalog)
-cost = bom["total_jod"].sum()
+cost = r.plan_cost(bom)
 imp = r.impact(res["water"], cost, a)
 
 # ---------------------------------------------------------------- metric row
@@ -73,7 +81,7 @@ c[0].metric("Water reused", f"{res['water']:.1f} m³/yr")
 c[1].metric("Tanker trips avoided", f"{imp['trips']:.1f} /yr")
 c[2].metric("Saved", f"{imp['jod']:.0f} JOD/yr")
 c[3].metric("CO₂ cut", f"{imp['co2']:.0f} kg/yr")
-c[4].metric("Payback", f"{imp['payback_months']:.0f} months" if imp["payback_months"] else "n/a",
+c[4].metric("Payback", r.format_payback(imp["payback_months"]),
             help=f"System cost {cost:.0f} JOD from the catalog")
 
 impact_tab, plan_tab, method_tab, data_tab = st.tabs(["Impact", "Blueprint", "Safety & method", "Assumptions & sources"])
@@ -101,21 +109,21 @@ with impact_tab:
     with right:
         st.markdown("**Sareef counter** · صهريج")
         after = st.toggle("With Ramadi-Cycle", value=True)
-        demand = bal["demand"].sum() + res["greywater"]  # water these uses need today, all bought
-        before = r.impact(demand, 0, a)
-        now = r.impact(demand - res["water"], 0, a) if after else before
+        sc = r.sareef(res, a, after)
+        now, delta = sc["now"], sc["delta"]
         st.metric("Tanker trips a year", f"{now['trips']:.1f}",
-                  delta=f"{now['trips'] - before['trips']:.1f}" if after else None, delta_color="inverse")
+                  delta=f"{delta['trips']:.1f}" if delta else None, delta_color="inverse")
         st.metric("JOD a year on this water", f"{now['jod']:.0f}",
-                  delta=f"{now['jod'] - before['jod']:.0f}" if after else None, delta_color="inverse")
+                  delta=f"{delta['jod']:.0f}" if delta else None, delta_color="inverse")
         st.metric("kg CO₂ a year", f"{now['co2']:.0f}",
-                  delta=f"{now['co2'] - before['co2']:.0f}" if after else None, delta_color="inverse")
+                  delta=f"{delta['co2']:.0f}" if delta else None, delta_color="inverse")
         st.caption("Covers toilet flushing, cleaning and garden water only. Drinking and cooking water are unchanged.")
         st.divider()
-        homes = st.slider("Scale to homes in a neighbourhood", 1, 1000, 1)
+        homes = st.slider("Scale to homes in a neighbourhood", 1, r.COMMUNITY_MAX_HOMES, 1)
         if homes > 1:
-            st.write(f"{homes} homes: **{res['water'] * homes:,.0f} m³**, **{imp['trips'] * homes:,.0f}** tanker "
-                     f"trips and **{imp['co2'] * homes / 1000:,.1f} t** CO₂ a year.")
+            com = r.community(res, imp, homes)
+            st.write(f"{homes} homes: **{com['water']:,.0f} m³**, **{com['trips']:,.0f}** tanker "
+                     f"trips and **{com['co2_t']:,.1f} t** CO₂ a year.")
 
 # ---------------------------------------------------------------- blueprint
 
@@ -123,24 +131,23 @@ with plan_tab:
     if "plan" not in st.session_state:
         st.info("Set up the household in the sidebar, then press **Generate blueprint**.")
     else:
-        bp, source, notes, used_model = st.session_state["plan"]
+        bp, source, notice, used_model = st.session_state["plan"]
         checks = r.safety_checks(bp)
         passed = sum(ok for _, ok in checks)
         if source == "model":
             st.caption(f"Generated on this laptop by {used_model}. Prices and checks by code.")
         else:
-            st.warning("Showing the built-in template plan. "
-                       + ("The model output failed validation: " + "; ".join(notes) if notes else
-                          "No local model was available."))
+            st.warning(notice)
         st.markdown(f"<span class='rc-badge'>Safety checks passed: {passed} of {len(checks)}</span>",
                     unsafe_allow_html=True)
 
         rtl = "rc-rtl" if bp.language == "ar" else ""
         L = {"en": ("Rainwater", "Greywater", "Plants for greywater", "Safety rules"),
              "ar": ("مياه الأمطار", "المياه الرمادية", "نباتات تُسقى بالمياه الرمادية", "قواعد السلامة")}[bp.language]
-        steps = lambda xs: "".join(f"<li>{x}</li>" for x in xs)
+        esc = html.escape  # model text goes into HTML below; never let it inject markup
+        steps = lambda xs: "".join(f"<li>{esc(x)}</li>" for x in xs)
         st.markdown(
-            f"<div class='{rtl}'><p>{bp.summary}</p>"
+            f"<div class='{rtl}'><p>{esc(bp.summary)}</p>"
             f"<h4>{L[0]}</h4><ol>{steps(bp.rainwater_steps)}</ol>"
             f"<h4>{L[1]}</h4><ol>{steps(bp.greywater_steps)}</ol></div>",
             unsafe_allow_html=True)
@@ -153,7 +160,7 @@ with plan_tab:
         name_col = "name_ar" if bp.language == "ar" else "name_en"
         st.markdown(
             f"<div class='{rtl}'><h4>{L[2]}</h4><ul>"
-            + "".join(f"<li><b>{pl.at[p.plant_id, name_col]}</b>: {p.reason}</li>" for p in bp.plants)
+            + "".join(f"<li><b>{esc(pl.at[p.plant_id, name_col])}</b>: {esc(p.reason)}</li>" for p in bp.plants)
             + f"</ul><h4>{L[3]}</h4>"
             + "".join(f"<div class='rc-warn'>{w}</div>" for w in r.WARNINGS[bp.language])
             + f"<p><i>{r.DISCLAIMER[bp.language]}</i></p></div>",
@@ -176,6 +183,7 @@ with method_tab:
     st.caption("Banned terms in model text: " + ", ".join(r.BANNED_TERMS))
     st.markdown("#### Formulas")
     st.latex(r"I_m = A \times (R \times s_m \times k) \times C \times (1 - f)")
+    st.latex(r"D_m = P \times d_{person} \times \text{days}_m")
     st.latex(r"L_m = \min\left(K,\; \max\left(0,\; L_{m-1} + I_m - D_m\right)\right)")
     st.latex(r"G_{week} = (P\,n_{shower}\,l_{shower} + n_{laundry}\,l_{laundry} + P\,l_{sink}) \times r")
     st.latex(r"\text{Trips} = \frac{W s}{T} \quad \text{JOD} = \text{Trips}\,p_{trip} + W(1-s)\,p_{tariff}")
@@ -191,7 +199,9 @@ with method_tab:
 # ---------------------------------------------------------------- assumptions
 
 with data_tab:
-    st.markdown("Every constant the app uses. None is verified yet. Fix one with a pull request to `data/`.")
+    n_verified = int((assumptions["status"] == "verified").sum())
+    st.markdown(f"Every constant the app uses. {n_verified} of {len(assumptions)} verified. "
+                "Fix one with a pull request to `data/`.")
     st.dataframe(assumptions, hide_index=True, width="stretch")
     st.markdown("**Rainfall by governorate**")
     st.dataframe(rain, hide_index=True, width="stretch")

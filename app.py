@@ -205,6 +205,8 @@ with data_tab:
     st.dataframe(assumptions, hide_index=True, width="stretch")
     st.markdown("**Rainfall by governorate**")
     st.dataframe(rain, hide_index=True, width="stretch")
+    st.markdown("**Share of annual rain by month**")
+    st.dataframe(r.read_table("monthly_share.csv"), hide_index=True, width="stretch")
     st.markdown("**Catalog**")
     st.dataframe(catalog, hide_index=True, width="stretch")
     st.markdown("**Plants**")

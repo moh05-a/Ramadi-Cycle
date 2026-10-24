@@ -47,7 +47,7 @@ Write like a neighbour who happens to be a plumber.
 - **Concrete numbers, not adjectives.** "Saves 6 tanker trips a year", not "significant savings".
 - **Say what the app doesn't know.** "Placeholder, unverified" is a feature. It's why people can trust the rest.
 - **Short sentences, active verbs.** "Fit the diverter before the tank." Not "The diverter should be installed prior to the tank inlet."
-- **No hype.** No "revolutionary", "smart", "AI-powered", "empower", "seamless", "unlock". The AI is a component, not the pitch. Lead with water and dinars.
+- **No hype.** No "revolutionary", "smart", "AI-powered", "empower", "seamless", "unlock". The AI is a component, not the pitch. Lead with the garden your water can grow, then the dinars and tanker trips it saves.
 - **No emoji** in the product or the plans.
 - **Arabic is written, not translated.** Modern Standard Arabic for plans; plain words over technical ones (مزراب, not a transliterated English term).
 

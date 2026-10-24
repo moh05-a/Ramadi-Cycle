@@ -3,8 +3,10 @@
 Code owns every number, price and safety rule. The model only picks catalog IDs and writes text.
 """
 import json
+import logging
 import re
 import unicodedata
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Literal, NamedTuple
@@ -14,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 DATA = Path(__file__).parent / "data"
 OLLAMA_URL = "http://localhost:11434"
+log = logging.getLogger("ramadi")
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 
@@ -488,21 +491,83 @@ def template_blueprint(profile, budget, lang):
 
 # ---------------------------------------------------------------- local model (Ollama)
 
+# One first call plus two retries (PRD M7 "two retries"). PRD §4 says "fails twice"; see AUDIT.md.
+MAX_ATTEMPTS = 3
+LIST_TIMEOUT_S = 2
+CHAT_TIMEOUT_S = 180
+# Fixed sampling so the same inputs give the same plan on the demo laptop.
+MODEL_OPTIONS = {"temperature": 0.3, "seed": 42}
+
+
+class ModelError(Exception):
+    """The local model could not be reached or answered with something other than a chat reply."""
+    code = "model_error"
+    retry = False  # True when another attempt may succeed
+
+
+class ModelUnavailable(ModelError):
+    code = "unavailable"  # Ollama not running, connection refused or reset
+
+
+class ModelTimeout(ModelError):
+    code = "timeout"
+
+
+class ModelNotFound(ModelError):
+    code = "model_not_pulled"
+
+
+class BadResponse(ModelError):
+    code = "bad_response"  # HTTP 5xx or a reply without message.content
+    retry = True
+
+
 def list_models():
     try:
-        with urllib.request.urlopen(f"{OLLAMA_URL}/api/tags", timeout=2) as r:
-            return [m["name"] for m in json.load(r)["models"]]
-    except Exception:  # Ollama not running: the app still works on the template
+        with urllib.request.urlopen(f"{OLLAMA_URL}/api/tags", timeout=LIST_TIMEOUT_S) as resp:
+            return [m["name"] for m in json.load(resp)["models"]]
+    except Exception:  # Ollama not running or not installed: the app still works on the template
         return []
 
 
 def ollama_chat(model, prompt):
+    """One non-streaming chat call. Returns the reply text or raises a ModelError subclass."""
     body = json.dumps({"model": model, "stream": False, "format": Blueprint.model_json_schema(),
-                       "options": {"temperature": 0.3},
+                       "options": MODEL_OPTIONS,
                        "messages": [{"role": "user", "content": prompt}]}).encode()
     req = urllib.request.Request(f"{OLLAMA_URL}/api/chat", body, {"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=180) as r:
-        return json.load(r)["message"]["content"]
+    try:
+        with urllib.request.urlopen(req, timeout=CHAT_TIMEOUT_S) as resp:
+            payload = json.load(resp)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise ModelNotFound(f"{model} is not pulled") from None
+        raise BadResponse(f"HTTP {e.code}") from None
+    except TimeoutError:
+        raise ModelTimeout(f"no reply within {CHAT_TIMEOUT_S} s") from None
+    except urllib.error.URLError as e:
+        if isinstance(e.reason, TimeoutError):
+            raise ModelTimeout(f"no reply within {CHAT_TIMEOUT_S} s") from None
+        raise ModelUnavailable(str(e.reason)) from None
+    except (ValueError, UnicodeDecodeError):
+        raise BadResponse("reply is not JSON") from None
+    except OSError as e:
+        raise ModelUnavailable(e.__class__.__name__) from None
+    content = (payload.get("message") or {}).get("content") if isinstance(payload, dict) else None
+    if not isinstance(content, str):
+        raise BadResponse("reply has no message.content")
+    return content
+
+
+def as_model_error(e):
+    """Map any exception from a chat function to a ModelError, so callers handle one family."""
+    if isinstance(e, ModelError):
+        return e
+    if isinstance(e, TimeoutError):
+        return ModelTimeout(str(e) or "timed out")
+    if isinstance(e, (ConnectionError, urllib.error.URLError)):
+        return ModelUnavailable(str(e) or e.__class__.__name__)
+    return BadResponse(e.__class__.__name__)
 
 
 def build_prompt(profile, result, catalog, plants, budget, lang):
@@ -526,22 +591,48 @@ Rules:
 """
 
 
-def generate(profile, result, catalog, plants, budget, lang, model, chat=ollama_chat, retries=2):
-    """Returns (Blueprint, source, notes). source is 'model' or 'template'."""
+class Generation(NamedTuple):
+    blueprint: "Blueprint"
+    source: Literal["model", "template"]
+    notes: list  # one line per failed attempt: "attempt N: <code>: <detail>"
+
+
+def generate(profile, result, catalog, plants, budget, lang, model, chat=None, max_total_jod=None):
+    """Ask the model for a plan, validate it, and fall back to the template. Never raises for model failures.
+
+    Output problems (prose, bad JSON, schema, validation) are retried up to MAX_ATTEMPTS calls in all.
+    Transport problems (not running, model not pulled, timeout) stop at once: retrying cannot help and
+    a timeout already cost CHAT_TIMEOUT_S.
+    """
+    chat = chat or ollama_chat  # looked up at call time so tests can replace it
     notes = []
     if model:
         prompt = build_prompt(profile, result, catalog, plants, budget, lang)
-        for attempt in range(1 + retries):
+        for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
                 raw = chat(model, prompt)
-            except Exception as e:
-                notes.append(f"attempt {attempt + 1}: model call failed ({e.__class__.__name__})")
-                continue
-            bp, why = validate(raw, catalog, plants, budget)
-            if bp and bp.language == lang:
-                return bp, "model", notes
-            notes.append(f"attempt {attempt + 1}: rejected ({why or 'wrong language'})")
-    return template_blueprint(profile, budget, lang), "template", notes
+            except Exception as e:  # noqa: BLE001 - every failure must end in the template
+                err = as_model_error(e)
+                notes.append(f"attempt {attempt}: {err.code}: {err}")
+                log.info("model attempt %d failed: %s", attempt, err.code)
+                if err.retry:
+                    continue
+                break
+            bp, why = validate(raw, catalog, plants, budget, lang, max_total_jod)
+            if bp:
+                return Generation(bp, "model", notes)
+            notes.append(f"attempt {attempt}: rejected: {why}")
+            log.info("model attempt %d rejected: %s", attempt, why.code)  # code only, no user data
+    return Generation(template_blueprint(profile, budget, lang), "template", notes)
+
+
+def fallback_notice(gen, model):
+    """On-screen notice for a template plan, or None for a model plan."""
+    if gen.source == "model":
+        return None
+    if not model:
+        return "Showing the built-in template plan. No local model was available (Ollama is not running or has no models)."
+    return f"Showing the built-in template plan. {model} could not produce a valid plan: " + "; ".join(gen.notes)
 
 
 def to_markdown(bp, bom, profile, result):
